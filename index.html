@@ -1,1 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel File Processor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+    <h1>Upload and Process Excel File</h1>
+    <form id="file-form">
+        <label for="file-input">Choose Excel File:</label>
+        <input type="file" id="file-input" accept=".xlsx, .xls">
+        <br><br>
+        <label for="sheet-name">Enter Sheet Name (leave blank for first sheet):</label>
+        <input type="text" id="sheet-name">
+        <br><br>
+        <button type="button" onclick="processExcel()">Process File</button>
+    </form>
+    <h2>Processed Data Preview</h2>
+    <table id="data-table" border="1">
+        <thead></thead>
+        <tbody></tbody>
+    </table>
+    <script>
+        function processExcel() {
+            const fileInput = document.getElementById('file-input');
+            const sheetNameInput = document.getElementById('sheet-name').value;
+
+            if (!fileInput.files.length) {
+                alert('Please select a file.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function (event) {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                let sheetName = sheetNameInput || workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+
+                if (!sheet) {
+                    alert(`Sheet "${sheetName}" does not exist in the file.`);
+                    return;
+                }
+
+                let jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                // Step 1: Delete the first 5 rows
+                jsonData = jsonData.slice(5);
+
+                // Step 2: Set the first row as headers
+                const headers = jsonData[0];
+                jsonData = jsonData.slice(1);
+
+                // Step 3: Normalize column names
+                const normalizedHeaders = headers.map(h => h && h.toString().trim());
+
+                // Step 4: Convert to objects and process the data
+                jsonData = jsonData.map(row => {
+                    const obj = {};
+                    row.forEach((cell, index) => {
+                        obj[normalizedHeaders[index]] = cell;
+                    });
+                    return obj;
+                });
+
+                // Step 5: Filter out rows with specific 'Status' values
+                jsonData = jsonData.filter(row => row['Status'] !== 'Declined' && row['Status'] !== 'Orphan Declined');
+
+                // Step 6: Update 'Mode' column values
+                jsonData.forEach(row => {
+                    if (row['Mode'] === 'Commuter Rail') row['Mode'] = 'Rail';
+                    else if (row['Mode'] === 'CCT') row['Mode'] = 'CCT';
+                    else row['Mode'] = 'Transit';
+                });
+
+                // Step 7: Format 'Entry Date' column
+                jsonData.forEach(row => {
+                    if (row['Entry Date']) {
+                        const date = new Date(row['Entry Date']);
+                        if (!isNaN(date)) {
+                            row['Entry Date'] = date.toLocaleDateString('en-US');
+                        }
+                    }
+                });
+
+                // Step 8: Display the processed data
+                const tableHead = document.querySelector('#data-table thead');
+                const tableBody = document.querySelector('#data-table tbody');
+                tableHead.innerHTML = '';
+                tableBody.innerHTML = '';
+
+                // Create table headers
+                const headerRow = document.createElement('tr');
+                normalizedHeaders.forEach(header => {
+                    const th = document.createElement('th');
+                    th.textContent = header;
+                    headerRow.appendChild(th);
+                });
+                tableHead.appendChild(headerRow);
+
+                // Create table rows
+                jsonData.slice(0, 10).forEach(row => {
+                    const tr = document.createElement('tr');
+                    normalizedHeaders.forEach(header => {
+                        const td = document.createElement('td');
+                        td.textContent = row[header] || '';
+                        tr.appendChild(td);
+                    });
+                    tableBody.appendChild(tr);
+                });
+
+                // Step 9: Save processed data as a new file
+                const newSheet = XLSX.utils.json_to_sheet(jsonData);
+                const newWorkbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(newWorkbook, newSheet, sheetName);
+                XLSX.writeFile(newWorkbook, file.name.replace(/\.xlsx?$/, ' - Cleaned Data.xlsx'));
+
+                alert('File processed and saved successfully!');
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+    </script>
+</body>
+</html>
 
