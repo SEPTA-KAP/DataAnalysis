@@ -3,129 +3,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel Data Processor</title>
+    <title>Excel File Processor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; color: #333; }
-        h1 { color: #2c3e50; }
-        label { display: block; margin: 10px 0 5px; }
-        input, button { padding: 10px; margin-bottom: 15px; width: 100%; max-width: 400px; }
-        button { background-color: #3498db; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #2980b9; }
-        pre { background: #ecf0f1; padding: 10px; overflow-x: auto; max-width: 100%; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #preview {
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
     </style>
 </head>
 <body>
-    <h1>Excel Data Processor</h1>
-
-    <!-- File Upload -->
-    <label for="fileUpload">Upload Excel File:</label>
-    <input type="file" id="fileUpload" accept=".xlsx, .xls">
-
-    <!-- Output Log -->
-    <h2>Processing Log:</h2>
-    <pre id="outputLog">No file processed yet...</pre>
-
-    <!-- Download Button -->
-    <button id="downloadBtn" style="display:none;">Download Cleaned File</button>
+    <div class="container">
+        <h1>Excel File Processor</h1>
+        
+        <div class="input-group">
+            <label for="fileInput">Select Excel File:</label>
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+        </div>
+        
+        <div class="input-group">
+            <label for="sheetSelect">Select Sheet:</label>
+            <select id="sheetSelect"></select>
+        </div>
+        
+        <button onclick="processFile()">Process File</button>
+        
+        <div id="status" class="status"></div>
+        <div id="preview"></div>
+    </div>
 
     <script>
-        let processedWorkbook;
+        let workbook = null;
+        let currentSheet = null;
 
-        document.getElementById('fileUpload').addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            const outputLog = document.getElementById('outputLog');
-
-            if (!file) {
-                outputLog.textContent = "Please upload a valid Excel file.";
-                return;
-            }
-
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
             const reader = new FileReader();
+            
             reader.onload = function(e) {
                 try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-
-                    // Process the first sheet
-                    const sheetName = workbook.SheetNames[0];
-                    let worksheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
-
-                    outputLog.textContent = "Processing file...\n\n";
-
-                    if (worksheet.length === 0) {
-                        throw new Error("The sheet is empty or cannot be read.");
-                    }
-
-                    // Step 1: Delete the first 5 rows
-                    worksheet = worksheet.slice(5);
-
-                    if (worksheet.length === 0) {
-                        throw new Error("No data left after removing the first 5 rows.");
-                    }
-
-                    // Step 2: Set new headers
-                    const headers = worksheet[0].map(header => (header || "").toString().trim());
-                    worksheet = worksheet.slice(1).map(row => {
-                        const obj = {};
-                        headers.forEach((header, i) => {
-                            obj[header] = row[i];
-                        });
-                        return obj;
-                    });
-
-                    outputLog.textContent += `Headers: ${headers.join(", ")}\n`;
-
-                    // Step 3: Validate required columns
-                    const requiredCols = ['Status', 'Mode', 'Entry Date'];
-                    requiredCols.forEach(col => {
-                        if (!headers.includes(col)) throw new Error(`Missing required column: ${col}`);
-                    });
-
-                    // Step 4: Remove rows with 'Declined' or 'Orphan Declined'
-                    worksheet = worksheet.filter(row => row['Status'] !== 'Declined' && row['Status'] !== 'Orphan Declined');
-
-                    // Step 5: Replace 'Mode' values
-                    worksheet.forEach(row => {
-                        if (row['Mode'] === 'Commuter Rail') row['Mode'] = 'Rail';
-                        else if (row['Mode'] === 'CCT') row['Mode'] = 'CCT';
-                        else row['Mode'] = 'Transit';
-                    });
-
-                    // Step 6: Delete 'Status' column
-                    worksheet.forEach(row => delete row['Status']);
-
-                    // Step 7: Format 'Entry Date'
-                    worksheet.forEach(row => {
-                        if (row['Entry Date']) {
-                            const date = new Date(row['Entry Date']);
-                            row['Entry Date'] = isNaN(date) ? '' : date.toLocaleDateString('en-US');
-                        }
-                    });
-
-                    outputLog.textContent += "File processed successfully!\n" +
-                                             `Rows after cleaning: ${worksheet.length}\n`;
-
-                    // Convert back to sheet and workbook
-                    const newSheet = XLSX.utils.json_to_sheet(worksheet);
-                    processedWorkbook = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(processedWorkbook, newSheet, "Cleaned Data");
-
-                    // Show download button
-                    document.getElementById('downloadBtn').style.display = 'block';
-                } catch (err) {
-                    outputLog.textContent = "Error: " + err.message;
+                    workbook = XLSX.read(e.target.result, { type: 'array' });
+                    updateSheetList();
+                } catch (error) {
+                    showStatus('Error reading file: ' + error.message, 'error');
                 }
             };
-
+            
             reader.readAsArrayBuffer(file);
         });
 
-        document.getElementById('downloadBtn').addEventListener('click', () => {
-            if (processedWorkbook) {
-                XLSX.writeFile(processedWorkbook, "Cleaned_Data.xlsx");
+        function updateSheetList() {
+            const sheetSelect = document.getElementById('sheetSelect');
+            sheetSelect.innerHTML = '';
+            
+            workbook.SheetNames.forEach(sheetName => {
+                const option = document.createElement('option');
+                option.value = sheetName;
+                option.textContent = sheetName;
+                sheetSelect.appendChild(option);
+            });
+        }
+
+        function processFile() {
+            if (!workbook) {
+                showStatus('Please select a file first.', 'error');
+                return;
             }
-        });
+
+            const sheetName = document.getElementById('sheetSelect').value;
+            const worksheet = workbook.Sheets[sheetName];
+            let df = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+            // Step 1: Delete first 5 rows
+            df = df.slice(5);
+
+            // Step 2: Set headers
+            const headers = df[0];
+            df = df.slice(1);
+
+            // Step 3: Normalize column names
+            const normalizedHeaders = headers.map(h => h ? h.trim() : '');
+
+            // Convert to array of objects
+            df = df.map(row => {
+                const obj = {};
+                normalizedHeaders.forEach((header, i) => {
+                    if (header) obj[header] = row[i];
+                });
+                return obj;
+            });
+
+            // Step 4: Remove rows based on Count Ridership presence
+            const hasCountRidership = normalizedHeaders.includes('Count Ridership');
+            df = hasCountRidership ? df.slice(0, -1) : df.slice(0, -6);
+
+            // Step 5: Filter out declined status
+            df = df.filter(row => !['Declined', 'Orphan Declined'].includes(row['Status']));
+
+            // Step 6: Delete Status column
+            df = df.map(row => {
+                const { Status, ...rest } = row;
+                return rest;
+            });
+
+            // Step 7: Replace Mode values
+            df = df.map(row => ({
+                ...row,
+                Mode: row.Mode === 'Commuter Rail' ? 'Rail' : 
+                      (row.Mode === 'CCT' || row.Mode === 'Paratransit') ? 'CCT' : 'Transit'
+            }));
+
+            // Step 8: Format Entry Date
+            df = df.map(row => ({
+                ...row,
+                'Entry Date': row['Entry Date'] ? new Date(row['Entry Date']).toLocaleDateString() : ''
+            }));
+
+            // Step 9: Handle Count Ridership
+            if (!hasCountRidership && 'Transaction Type' in df[0]) {
+                df = df.map(row => ({
+                    ...row,
+                    'Count Ridership': row['Transaction Type'] === 'C' || row['Transaction Type'] === 'D' ? 0 :
+                                     row['Transaction Type'] === 'R' ? -1 : 1
+                }));
+            }
+
+            // Keep only required columns
+            const requiredColumns = ['Entry Date', 'Mode', 'Media Row ID', 'Product Type', 'Transaction Type', 'Count Ridership'];
+            df = df.map(row => {
+                const newRow = {};
+                requiredColumns.forEach(col => {
+                    if (col in row) newRow[col] = row[col];
+                });
+                return newRow;
+            });
+
+            // Create new workbook and save
+            const newWorkbook = XLSX.utils.book_new();
+            const newWorksheet = XLSX.utils.json_to_sheet(df);
+            XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, sheetName);
+
+            // Save file
+            const fileName = document.getElementById('fileInput').files[0].name;
+            const newFileName = fileName.replace(/\.[^/.]+$/, '') + ' - Cleaned Data.xlsx';
+            XLSX.writeFile(newWorkbook, newFileName);
+
+            // Show preview
+            showPreview(df);
+            showStatus('File processed successfully! Download should begin automatically.', 'success');
+        }
+
+        function showPreview(data) {
+            const preview = document.getElementById('preview');
+            if (data.length === 0) {
+                preview.innerHTML = '<p>No data to display</p>';
+                return;
+            }
+
+            const headers = Object.keys(data[0]);
+            let table = '<table><tr>';
+            headers.forEach(header => {
+                table += `<th>${header}</th>`;
+            });
+            table += '</tr>';
+
+            data.slice(0, 10).forEach(row => {
+                table += '<tr>';
+                headers.forEach(header => {
+                    table += `<td>${row[header] || ''}</td>`;
+                });
+                table += '</tr>';
+            });
+            table += '</table>';
+
+            preview.innerHTML = '<h3>Preview (First 10 rows)</h3>' + table;
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+        }
     </script>
 </body>
 </html>
