@@ -6,40 +6,13 @@
     <title>Excel Data Processor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f9;
-            color: #333;
-        }
-        h1 {
-            color: #2c3e50;
-        }
-        label {
-            display: block;
-            margin: 10px 0 5px;
-        }
-        input, button {
-            padding: 10px;
-            margin-bottom: 15px;
-            width: 100%;
-            max-width: 400px;
-        }
-        button {
-            background-color: #3498db;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #2980b9;
-        }
-        pre {
-            background: #ecf0f1;
-            padding: 10px;
-            overflow-x: auto;
-            max-width: 100%;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; color: #333; }
+        h1 { color: #2c3e50; }
+        label { display: block; margin: 10px 0 5px; }
+        input, button { padding: 10px; margin-bottom: 15px; width: 100%; max-width: 400px; }
+        button { background-color: #3498db; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #2980b9; }
+        pre { background: #ecf0f1; padding: 10px; overflow-x: auto; max-width: 100%; }
     </style>
 </head>
 <body>
@@ -70,63 +43,79 @@
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
 
-                // Process the first sheet
-                const sheetName = workbook.SheetNames[0];
-                let worksheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+                    // Process the first sheet
+                    const sheetName = workbook.SheetNames[0];
+                    let worksheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-                outputLog.textContent = "Processing file...\n\n";
+                    outputLog.textContent = "Processing file...\n\n";
 
-                // Step 1: Delete the first 5 rows
-                worksheet = worksheet.slice(5);
-
-                // Step 2: Set the new header row
-                const headers = worksheet[0];
-                worksheet = worksheet.slice(1);
-                worksheet = worksheet.map(row => {
-                    const obj = {};
-                    headers.forEach((header, i) => {
-                        obj[header.trim()] = row[i];
-                    });
-                    return obj;
-                });
-
-                // Step 3: Remove 'Declined' rows
-                worksheet = worksheet.filter(row => row['Status'] !== 'Declined' && row['Status'] !== 'Orphan Declined');
-
-                // Step 4: Replace 'Mode' values
-                worksheet.forEach(row => {
-                    if (row['Mode'] === 'Commuter Rail') row['Mode'] = 'Rail';
-                    else if (row['Mode'] === 'CCT') row['Mode'] = 'CCT';
-                    else row['Mode'] = 'Transit';
-                });
-
-                // Step 5: Drop 'Status' column
-                worksheet = worksheet.map(row => {
-                    delete row['Status'];
-                    return row;
-                });
-
-                // Step 6: Format 'Entry Date'
-                worksheet.forEach(row => {
-                    if (row['Entry Date']) {
-                        const date = new Date(row['Entry Date']);
-                        row['Entry Date'] = isNaN(date) ? '' : date.toLocaleDateString('en-US');
+                    if (worksheet.length === 0) {
+                        throw new Error("The sheet is empty or cannot be read.");
                     }
-                });
 
-                outputLog.textContent += "File processed successfully!\n" +
-                    `- Rows after cleaning: ${worksheet.length}\n`;
+                    // Step 1: Delete the first 5 rows
+                    worksheet = worksheet.slice(5);
 
-                // Store the cleaned data
-                const newSheet = XLSX.utils.json_to_sheet(worksheet);
-                processedWorkbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(processedWorkbook, newSheet, "Cleaned Data");
+                    if (worksheet.length === 0) {
+                        throw new Error("No data left after removing the first 5 rows.");
+                    }
 
-                // Show download button
-                document.getElementById('downloadBtn').style.display = 'block';
+                    // Step 2: Set new headers
+                    const headers = worksheet[0].map(header => (header || "").toString().trim());
+                    worksheet = worksheet.slice(1).map(row => {
+                        const obj = {};
+                        headers.forEach((header, i) => {
+                            obj[header] = row[i];
+                        });
+                        return obj;
+                    });
+
+                    outputLog.textContent += `Headers: ${headers.join(", ")}\n`;
+
+                    // Step 3: Validate required columns
+                    const requiredCols = ['Status', 'Mode', 'Entry Date'];
+                    requiredCols.forEach(col => {
+                        if (!headers.includes(col)) throw new Error(`Missing required column: ${col}`);
+                    });
+
+                    // Step 4: Remove rows with 'Declined' or 'Orphan Declined'
+                    worksheet = worksheet.filter(row => row['Status'] !== 'Declined' && row['Status'] !== 'Orphan Declined');
+
+                    // Step 5: Replace 'Mode' values
+                    worksheet.forEach(row => {
+                        if (row['Mode'] === 'Commuter Rail') row['Mode'] = 'Rail';
+                        else if (row['Mode'] === 'CCT') row['Mode'] = 'CCT';
+                        else row['Mode'] = 'Transit';
+                    });
+
+                    // Step 6: Delete 'Status' column
+                    worksheet.forEach(row => delete row['Status']);
+
+                    // Step 7: Format 'Entry Date'
+                    worksheet.forEach(row => {
+                        if (row['Entry Date']) {
+                            const date = new Date(row['Entry Date']);
+                            row['Entry Date'] = isNaN(date) ? '' : date.toLocaleDateString('en-US');
+                        }
+                    });
+
+                    outputLog.textContent += "File processed successfully!\n" +
+                                             `Rows after cleaning: ${worksheet.length}\n`;
+
+                    // Convert back to sheet and workbook
+                    const newSheet = XLSX.utils.json_to_sheet(worksheet);
+                    processedWorkbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(processedWorkbook, newSheet, "Cleaned Data");
+
+                    // Show download button
+                    document.getElementById('downloadBtn').style.display = 'block';
+                } catch (err) {
+                    outputLog.textContent = "Error: " + err.message;
+                }
             };
 
             reader.readAsArrayBuffer(file);
