@@ -76,6 +76,15 @@
             background-color: #f2dede;
             color: #a94442;
         }
+        #debugOutput {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
@@ -95,6 +104,7 @@
         <button onclick="processFile()">Process File</button>
         
         <div id="status" class="status"></div>
+        <div id="debugOutput"></div>
         <div id="preview"></div>
     </div>
 
@@ -102,17 +112,32 @@
         let workbook = null;
         let currentSheet = null;
 
+        function debug(message) {
+            console.log(message);
+            const debugOutput = document.getElementById('debugOutput');
+            debugOutput.textContent += message + '\n';
+        }
+
         document.getElementById('fileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
+            debug(`File selected: ${file.name}`);
+            
             const reader = new FileReader();
             
             reader.onload = function(e) {
                 try {
+                    debug('Reading file...');
                     workbook = XLSX.read(e.target.result, { type: 'array' });
+                    debug(`File read successfully. Sheets found: ${workbook.SheetNames.join(', ')}`);
                     updateSheetList();
                 } catch (error) {
+                    debug(`Error reading file: ${error.message}`);
                     showStatus('Error reading file: ' + error.message, 'error');
                 }
+            };
+            
+            reader.onerror = function(e) {
+                debug(`FileReader error: ${e.target.error}`);
             };
             
             reader.readAsArrayBuffer(file);
@@ -128,127 +153,156 @@
                 option.textContent = sheetName;
                 sheetSelect.appendChild(option);
             });
+            debug('Sheet list updated');
         }
 
         function processFile() {
-            if (!workbook) {
-                showStatus('Please select a file first.', 'error');
-                return;
-            }
+            debug('Starting file processing...');
+            
+            try {
+                if (!workbook) {
+                    throw new Error('Please select a file first.');
+                }
 
-            const sheetName = document.getElementById('sheetSelect').value;
-            const worksheet = workbook.Sheets[sheetName];
-            let df = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                const sheetName = document.getElementById('sheetSelect').value;
+                debug(`Processing sheet: ${sheetName}`);
+                
+                const worksheet = workbook.Sheets[sheetName];
+                let df = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                debug(`Initial data rows: ${df.length}`);
 
-            // Step 1: Delete first 5 rows
-            df = df.slice(5);
+                // Step 1: Delete first 5 rows
+                df = df.slice(5);
+                debug(`After removing first 5 rows: ${df.length} rows`);
 
-            // Step 2: Set headers
-            const headers = df[0];
-            df = df.slice(1);
+                // Step 2: Set headers
+                const headers = df[0];
+                df = df.slice(1);
+                debug(`Headers found: ${headers.join(', ')}`);
 
-            // Step 3: Normalize column names
-            const normalizedHeaders = headers.map(h => h ? h.trim() : '');
+                // Step 3: Normalize column names
+                const normalizedHeaders = headers.map(h => h ? h.trim() : '');
+                debug(`Normalized headers: ${normalizedHeaders.join(', ')}`);
 
-            // Convert to array of objects
-            df = df.map(row => {
-                const obj = {};
-                normalizedHeaders.forEach((header, i) => {
-                    if (header) obj[header] = row[i];
+                // Convert to array of objects
+                df = df.map(row => {
+                    const obj = {};
+                    normalizedHeaders.forEach((header, i) => {
+                        if (header) obj[header] = row[i];
+                    });
+                    return obj;
                 });
-                return obj;
-            });
+                debug(`Converted to objects: ${df.length} rows`);
 
-            // Step 4: Remove rows based on Count Ridership presence
-            const hasCountRidership = normalizedHeaders.includes('Count Ridership');
-            df = hasCountRidership ? df.slice(0, -1) : df.slice(0, -6);
+                // Step 4: Remove rows based on Count Ridership presence
+                const hasCountRidership = normalizedHeaders.includes('Count Ridership');
+                df = hasCountRidership ? df.slice(0, -1) : df.slice(0, -6);
+                debug(`After removing bottom rows: ${df.length} rows`);
 
-            // Step 5: Filter out declined status
-            df = df.filter(row => !['Declined', 'Orphan Declined'].includes(row['Status']));
+                // Step 5: Filter out declined status
+                const beforeFilter = df.length;
+                df = df.filter(row => !['Declined', 'Orphan Declined'].includes(row['Status']));
+                debug(`Filtered out ${beforeFilter - df.length} declined status rows`);
 
-            // Step 6: Delete Status column
-            df = df.map(row => {
-                const { Status, ...rest } = row;
-                return rest;
-            });
+                // Step 6: Delete Status column
+                df = df.map(row => {
+                    const { Status, ...rest } = row;
+                    return rest;
+                });
 
-            // Step 7: Replace Mode values
-            df = df.map(row => ({
-                ...row,
-                Mode: row.Mode === 'Commuter Rail' ? 'Rail' : 
-                      (row.Mode === 'CCT' || row.Mode === 'Paratransit') ? 'CCT' : 'Transit'
-            }));
-
-            // Step 8: Format Entry Date
-            df = df.map(row => ({
-                ...row,
-                'Entry Date': row['Entry Date'] ? new Date(row['Entry Date']).toLocaleDateString() : ''
-            }));
-
-            // Step 9: Handle Count Ridership
-            if (!hasCountRidership && 'Transaction Type' in df[0]) {
+                // Step 7: Replace Mode values
                 df = df.map(row => ({
                     ...row,
-                    'Count Ridership': row['Transaction Type'] === 'C' || row['Transaction Type'] === 'D' ? 0 :
-                                     row['Transaction Type'] === 'R' ? -1 : 1
+                    Mode: row.Mode === 'Commuter Rail' ? 'Rail' : 
+                          (row.Mode === 'CCT' || row.Mode === 'Paratransit') ? 'CCT' : 'Transit'
                 }));
-            }
 
-            // Keep only required columns
-            const requiredColumns = ['Entry Date', 'Mode', 'Media Row ID', 'Product Type', 'Transaction Type', 'Count Ridership'];
-            df = df.map(row => {
-                const newRow = {};
-                requiredColumns.forEach(col => {
-                    if (col in row) newRow[col] = row[col];
+                // Step 8: Format Entry Date
+                df = df.map(row => ({
+                    ...row,
+                    'Entry Date': row['Entry Date'] ? new Date(row['Entry Date']).toLocaleDateString() : ''
+                }));
+
+                // Step 9: Handle Count Ridership
+                if (!hasCountRidership && 'Transaction Type' in df[0]) {
+                    df = df.map(row => ({
+                        ...row,
+                        'Count Ridership': row['Transaction Type'] === 'C' || row['Transaction Type'] === 'D' ? 0 :
+                                         row['Transaction Type'] === 'R' ? -1 : 1
+                    }));
+                    debug('Added Count Ridership column based on Transaction Type');
+                }
+
+                // Keep only required columns
+                const requiredColumns = ['Entry Date', 'Mode', 'Media Row ID', 'Product Type', 'Transaction Type', 'Count Ridership'];
+                df = df.map(row => {
+                    const newRow = {};
+                    requiredColumns.forEach(col => {
+                        if (col in row) newRow[col] = row[col];
+                    });
+                    return newRow;
                 });
-                return newRow;
-            });
+                debug(`Final columns: ${Object.keys(df[0]).join(', ')}`);
 
-            // Create new workbook and save
-            const newWorkbook = XLSX.utils.book_new();
-            const newWorksheet = XLSX.utils.json_to_sheet(df);
-            XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, sheetName);
+                // Create new workbook and save
+                debug('Creating new workbook...');
+                const newWorkbook = XLSX.utils.book_new();
+                const newWorksheet = XLSX.utils.json_to_sheet(df);
+                XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, sheetName);
 
-            // Save file
-            const fileName = document.getElementById('fileInput').files[0].name;
-            const newFileName = fileName.replace(/\.[^/.]+$/, '') + ' - Cleaned Data.xlsx';
-            XLSX.writeFile(newWorkbook, newFileName);
+                // Save file
+                const fileName = document.getElementById('fileInput').files[0].name;
+                const newFileName = fileName.replace(/\.[^/.]+$/, '') + ' - Cleaned Data.xlsx';
+                debug(`Saving to file: ${newFileName}`);
+                XLSX.writeFile(newWorkbook, newFileName);
 
-            // Show preview
-            showPreview(df);
-            showStatus('File processed successfully! Download should begin automatically.', 'success');
+                // Show preview
+                showPreview(df);
+                showStatus('File processed successfully! Download should begin automatically.', 'success');
+                debug('Processing complete');
+
+            } catch (error) {
+                debug(`Error during processing: ${error.message}`);
+                showStatus(`Error processing file: ${error.message}`, 'error');
+            }
         }
 
         function showPreview(data) {
-            const preview = document.getElementById('preview');
-            if (data.length === 0) {
-                preview.innerHTML = '<p>No data to display</p>';
-                return;
-            }
+            try {
+                const preview = document.getElementById('preview');
+                if (data.length === 0) {
+                    preview.innerHTML = '<p>No data to display</p>';
+                    return;
+                }
 
-            const headers = Object.keys(data[0]);
-            let table = '<table><tr>';
-            headers.forEach(header => {
-                table += `<th>${header}</th>`;
-            });
-            table += '</tr>';
-
-            data.slice(0, 10).forEach(row => {
-                table += '<tr>';
+                const headers = Object.keys(data[0]);
+                let table = '<table><tr>';
                 headers.forEach(header => {
-                    table += `<td>${row[header] || ''}</td>`;
+                    table += `<th>${header}</th>`;
                 });
                 table += '</tr>';
-            });
-            table += '</table>';
 
-            preview.innerHTML = '<h3>Preview (First 10 rows)</h3>' + table;
+                data.slice(0, 10).forEach(row => {
+                    table += '<tr>';
+                    headers.forEach(header => {
+                        table += `<td>${row[header] || ''}</td>`;
+                    });
+                    table += '</tr>';
+                });
+                table += '</table>';
+
+                preview.innerHTML = '<h3>Preview (First 10 rows)</h3>' + table;
+                debug('Preview table generated');
+            } catch (error) {
+                debug(`Error generating preview: ${error.message}`);
+            }
         }
 
         function showStatus(message, type) {
             const status = document.getElementById('status');
             status.textContent = message;
             status.className = 'status ' + type;
+            debug(`Status: ${message}`);
         }
     </script>
 </body>
