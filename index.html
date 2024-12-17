@@ -158,6 +158,7 @@
 
         function processFile() {
             debug('Starting file processing...');
+            document.getElementById('debugOutput').textContent = ''; // Clear previous debug output
             
             try {
                 if (!workbook) {
@@ -176,12 +177,12 @@
                 debug(`After removing first 5 rows: ${df.length} rows`);
 
                 // Step 2: Set headers
-                const headers = df[0];
+                const headers = df[0] || [];
                 df = df.slice(1);
-                debug(`Headers found: ${headers.join(', ')}`);
+                debug(`Raw headers: ${headers.join(', ')}`);
 
-                // Step 3: Normalize column names
-                const normalizedHeaders = headers.map(h => h ? h.trim() : '');
+                // Step 3: Normalize column names - with null check
+                const normalizedHeaders = headers.map(h => (h ? String(h).trim() : ''));
                 debug(`Normalized headers: ${normalizedHeaders.join(', ')}`);
 
                 // Convert to array of objects
@@ -201,7 +202,7 @@
 
                 // Step 5: Filter out declined status
                 const beforeFilter = df.length;
-                df = df.filter(row => !['Declined', 'Orphan Declined'].includes(row['Status']));
+                df = df.filter(row => row['Status'] && !['Declined', 'Orphan Declined'].includes(row['Status']));
                 debug(`Filtered out ${beforeFilter - df.length} declined status rows`);
 
                 // Step 6: Delete Status column
@@ -224,7 +225,7 @@
                 }));
 
                 // Step 9: Handle Count Ridership
-                if (!hasCountRidership && 'Transaction Type' in df[0]) {
+                if (!hasCountRidership && df.length > 0 && 'Transaction Type' in df[0]) {
                     df = df.map(row => ({
                         ...row,
                         'Count Ridership': row['Transaction Type'] === 'C' || row['Transaction Type'] === 'D' ? 0 :
@@ -242,7 +243,7 @@
                     });
                     return newRow;
                 });
-                debug(`Final columns: ${Object.keys(df[0]).join(', ')}`);
+                debug(`Final columns: ${Object.keys(df[0] || {}).join(', ')}`);
 
                 // Create new workbook and save
                 debug('Creating new workbook...');
@@ -270,12 +271,12 @@
         function showPreview(data) {
             try {
                 const preview = document.getElementById('preview');
-                if (data.length === 0) {
+                if (!data || data.length === 0) {
                     preview.innerHTML = '<p>No data to display</p>';
                     return;
                 }
 
-                const headers = Object.keys(data[0]);
+                const headers = Object.keys(data[0] || {});
                 let table = '<table><tr>';
                 headers.forEach(header => {
                     table += `<th>${header}</th>`;
