@@ -7,7 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
-            font-family: 'Meriweather', serif;
+            font-family: Arial, sans-serif;
             background-color: #030331;
             color: #ffffff;
             display: flex;
@@ -21,30 +21,19 @@
             color: #030331;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             text-align: center;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
         }
-        h1 {
-            margin-bottom: 20px;
-        }
-        input[type="file"] {
+        input, button {
             margin: 10px 0;
+            padding: 10px;
         }
         button {
             background-color: #030331;
             color: #ffffff;
             border: none;
-            padding: 10px 20px;
-            margin: 10px;
-            cursor: pointer;
             border-radius: 5px;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        .error {
-            color: #dc3545;
-            margin: 10px 0;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -54,121 +43,105 @@
         <p>Upload a TDBL or ITH report to clean the data automatically.</p>
         <input type="file" id="fileInput" accept=".xlsx, .xls">
         <button onclick="processFile()">Clean File</button>
-        <div class="error" id="errorMessage"></div>
+        <div id="errorMessage" style="color: red; margin-top: 10px;"></div>
     </div>
 
     <script>
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-
-        function detectReportType(data) {
-            return data[0]?.['Count Ridership'] !== undefined ? 'TDBL' : 'ITH';
-        }
-
-        function cleanTDBL(data) {
-            // Remove first 5 rows and last row
-            let cleanedData = data.slice(5, -1);
-
-            // Filter out 'Declined' and 'Orphan Declined' in 'Status', then delete 'Status'
-            cleanedData = cleanedData.filter(row => row['Status'] !== 'Declined' && row['Status'] !== 'Orphan Declined');
-            cleanedData.forEach(row => delete row['Status']);
-
-            // Replace values in 'Mode'
-            cleanedData.forEach(row => {
-                if (row['Mode'] === 'Commuter Rail') row['Mode'] = 'Rail';
-                else if (row['Mode'] === 'CCT' || row['Mode'] === 'Paratransit') row['Mode'] = 'CCT';
-                else row['Mode'] = 'Transit';
-            });
-
-            // Format 'Entry Date' to mm/dd/yyyy
-            cleanedData.forEach(row => {
-                if (row['Entry Date']) row['Entry Date'] = row['Entry Date'].split(' ')[0];
-            });
-
-            // Keep only specified columns
-            return cleanedData.map(row => ({
-                'Entry Date': row['Entry Date'],
-                'Mode': row['Mode'],
-                'Media Row ID': row['Media Row ID'],
-                'Product Type': row['Product Type'],
-                'Count Ridership': row['Count Ridership']
-            }));
-        }
-
-        function cleanITH(data) {
-            // Remove first 5 rows and last 6 rows
-            let cleanedData = data.slice(5, -6);
-
-            // Filter out 'Declined' and 'Orphan Declined' in 'Status', then delete 'Status'
-            cleanedData = cleanedData.filter(row => row['Status'] !== 'Declined' && row['Status'] !== 'Orphan Declined');
-            cleanedData.forEach(row => delete row['Status']);
-
-            // Replace values in 'Mode'
-            cleanedData.forEach(row => {
-                if (row['Mode'] === 'Commuter Rail') row['Mode'] = 'Rail';
-                else if (row['Mode'] === 'CCT' || row['Mode'] === 'Paratransit') row['Mode'] = 'CCT';
-                else row['Mode'] = 'Transit';
-            });
-
-            // Format 'Entry Date' to mm/dd/yyyy
-            cleanedData.forEach(row => {
-                if (row['Entry Date']) row['Entry Date'] = row['Entry Date'].split(' ')[0];
-            });
-
-            // Create 'Count Ridership' column using 'Transaction Type'
-            cleanedData.forEach(row => {
-                const type = row['Transaction Type'];
-                if (type === 'C' || type === 'D') row['Count Ridership'] = 0;
-                else if (type === 'R') row['Count Ridership'] = -1;
-                else row['Count Ridership'] = 1;
-            });
-
-            // Keep only specified columns
-            return cleanedData.map(row => ({
-                'Entry Date': row['Entry Date'],
-                'Mode': row['Mode'],
-                'Media Row ID': row['Media Row ID'],
-                'Product Type': row['Product Type'],
-                'Count Ridership': row['Count Ridership']
-            }));
-        }
-
         function processFile() {
             const fileInput = document.getElementById('fileInput');
             const file = fileInput.files[0];
             if (!file) {
-                showError('Please select a file.');
+                showError("Please upload a file first.");
                 return;
             }
 
             const reader = new FileReader();
             reader.onload = function (e) {
                 try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+                    const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+                    const sheetName = workbook.SheetNames[0];
+                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
 
                     const reportType = detectReportType(jsonData);
-                    let cleanedData;
+                    const cleanedData = reportType === "TDBL" ? cleanTDBL(jsonData) : cleanITH(jsonData);
 
-                    if (reportType === 'TDBL') cleanedData = cleanTDBL(jsonData);
-                    else cleanedData = cleanITH(jsonData);
-
-                    const newWorkbook = XLSX.utils.book_new();
-                    const newSheet = XLSX.utils.json_to_sheet(cleanedData);
-                    XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Cleaned Data');
-
-                    const newFileName = file.name.replace(/\.[^/.]+$/, '') + ' - Cleaned.xlsx';
-                    XLSX.writeFile(newWorkbook, newFileName);
+                    downloadCleanedFile(cleanedData, file.name);
                 } catch (error) {
-                    showError('Error processing file: ' + error.message);
+                    showError("Error processing file: " + error.message);
                 }
             };
             reader.readAsArrayBuffer(file);
+        }
+
+        function detectReportType(data) {
+            return data.some(row => "Count Ridership" in row) ? "TDBL" : "ITH";
+        }
+
+        function cleanTDBL(data) {
+            let cleanedData = data.slice(5, -1); // Remove first 5 rows and last row
+
+            cleanedData = cleanedData.filter(row => row.Status !== "Declined" && row.Status !== "Orphan Declined");
+            cleanedData.forEach(row => {
+                row.Mode = mapMode(row.Mode);
+                row["Entry Date"] = formatDate(row["Entry Date"]);
+            });
+
+            return cleanedData.map(row => ({
+                "Entry Date": row["Entry Date"] || "",
+                "Mode": row.Mode || "",
+                "Media Row ID": row["Media Row ID"] || "",
+                "Product Type": row["Product Type"] || "",
+                "Count Ridership": row["Count Ridership"] || ""
+            }));
+        }
+
+        function cleanITH(data) {
+            let cleanedData = data.slice(5, -6); // Remove first 5 rows and last 6 rows
+
+            cleanedData = cleanedData.filter(row => row.Status !== "Declined" && row.Status !== "Orphan Declined");
+            cleanedData.forEach(row => {
+                row.Mode = mapMode(row.Mode);
+                row["Entry Date"] = formatDate(row["Entry Date"]);
+                row["Count Ridership"] = mapCountRidership(row["Transaction Type"]);
+            });
+
+            return cleanedData.map(row => ({
+                "Entry Date": row["Entry Date"] || "",
+                "Mode": row.Mode || "",
+                "Media Row ID": row["Media Row ID"] || "",
+                "Product Type": row["Product Type"] || "",
+                "Count Ridership": row["Count Ridership"] || ""
+            }));
+        }
+
+        function mapMode(mode) {
+            if (mode === "Commuter Rail") return "Rail";
+            if (mode === "CCT" || mode === "Paratransit") return "CCT";
+            return "Transit";
+        }
+
+        function mapCountRidership(transactionType) {
+            if (transactionType === "C" || transactionType === "D") return 0;
+            if (transactionType === "R") return -1;
+            return 1;
+        }
+
+        function formatDate(entryDate) {
+            if (!entryDate) return "";
+            return entryDate.split(" ")[0];
+        }
+
+        function downloadCleanedFile(data, originalFileName) {
+            const workbook = XLSX.utils.book_new();
+            const sheet = XLSX.utils.json_to_sheet(data);
+            XLSX.utils.book_append_sheet(workbook, sheet, "Cleaned Data");
+
+            const newFileName = originalFileName.replace(/\.[^/.]+$/, "") + " - Cleaned.xlsx";
+            XLSX.writeFile(workbook, newFileName);
+        }
+
+        function showError(message) {
+            document.getElementById("errorMessage").innerText = message;
         }
     </script>
 </body>
