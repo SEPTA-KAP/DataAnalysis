@@ -6,6 +6,7 @@
     <title>Excel File Processor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
+        /* ... (previous styles remain the same) ... */
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
@@ -110,7 +111,6 @@
 
     <script>
         let workbook = null;
-        let currentSheet = null;
 
         function debug(message) {
             console.log(message);
@@ -136,10 +136,6 @@
                 }
             };
             
-            reader.onerror = function(e) {
-                debug(`FileReader error: ${e.target.error}`);
-            };
-            
             reader.readAsArrayBuffer(file);
         });
 
@@ -158,7 +154,7 @@
 
         function processFile() {
             debug('Starting file processing...');
-            document.getElementById('debugOutput').textContent = ''; // Clear previous debug output
+            document.getElementById('debugOutput').textContent = '';
             
             try {
                 if (!workbook) {
@@ -168,42 +164,51 @@
                 const sheetName = document.getElementById('sheetSelect').value;
                 debug(`Processing sheet: ${sheetName}`);
                 
+                // Read the worksheet
                 const worksheet = workbook.Sheets[sheetName];
-                let df = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                // Convert to JSON with header: 1 to get array of arrays
+                let df = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
                 debug(`Initial data rows: ${df.length}`);
 
-                // Step 1: Delete first 5 rows
-                df = df.slice(5);
-                debug(`After removing first 5 rows: ${df.length} rows`);
+                // Get the headers from row 6 (index 5)
+                if (df.length < 6) {
+                    throw new Error('File does not contain enough rows. Expected at least 6 rows.');
+                }
 
-                // Step 2: Set headers
-                const headers = df[0] || [];
-                df = df.slice(1);
-                debug(`Raw headers: ${headers.join(', ')}`);
+                const headers = df[5].map(h => h ? String(h).trim() : '');
+                debug(`Headers found: ${headers.join(', ')}`);
 
-                // Step 3: Normalize column names - with null check
-                const normalizedHeaders = headers.map(h => (h ? String(h).trim() : ''));
-                debug(`Normalized headers: ${normalizedHeaders.join(', ')}`);
+                // Get all data after the header row
+                df = df.slice(6);
+                debug(`After removing header and junk rows: ${df.length} rows`);
 
-                // Convert to array of objects
+                // Convert array of arrays to array of objects
                 df = df.map(row => {
                     const obj = {};
-                    normalizedHeaders.forEach((header, i) => {
-                        if (header) obj[header] = row[i];
+                    headers.forEach((header, i) => {
+                        if (header && row[i] !== undefined) {
+                            obj[header] = row[i];
+                        }
                     });
                     return obj;
                 });
-                debug(`Converted to objects: ${df.length} rows`);
+
+                // Remove empty rows
+                df = df.filter(row => Object.keys(row).length > 0);
+                debug(`After removing empty rows: ${df.length} rows`);
 
                 // Step 4: Remove rows based on Count Ridership presence
-                const hasCountRidership = normalizedHeaders.includes('Count Ridership');
+                const hasCountRidership = headers.includes('Count Ridership');
                 df = hasCountRidership ? df.slice(0, -1) : df.slice(0, -6);
                 debug(`After removing bottom rows: ${df.length} rows`);
 
                 // Step 5: Filter out declined status
-                const beforeFilter = df.length;
-                df = df.filter(row => row['Status'] && !['Declined', 'Orphan Declined'].includes(row['Status']));
-                debug(`Filtered out ${beforeFilter - df.length} declined status rows`);
+                if ('Status' in df[0]) {
+                    const beforeFilter = df.length;
+                    df = df.filter(row => row['Status'] && !['Declined', 'Orphan Declined'].includes(row['Status']));
+                    debug(`Filtered out ${beforeFilter - df.length} declined status rows`);
+                }
 
                 // Step 6: Delete Status column
                 df = df.map(row => {
