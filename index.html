@@ -3,145 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Report Cleaner</title>
+    <title>Excel Data Processor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #030331;
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
         }
-        .container {
-            background-color: #ffffff;
-            color: #030331;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+        h1 {
+            color: #2c3e50;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
         }
         input, button {
-            margin: 10px 0;
             padding: 10px;
+            margin-bottom: 15px;
+            width: 100%;
+            max-width: 400px;
         }
         button {
-            background-color: #030331;
-            color: #ffffff;
+            background-color: #3498db;
+            color: white;
             border: none;
-            border-radius: 5px;
             cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        pre {
+            background: #ecf0f1;
+            padding: 10px;
+            overflow-x: auto;
+            max-width: 100%;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Excel Report Cleaner</h1>
-        <p>Upload a TDBL or ITH report to clean the data automatically.</p>
-        <input type="file" id="fileInput" accept=".xlsx, .xls">
-        <button onclick="processFile()">Clean File</button>
-        <div id="errorMessage" style="color: red; margin-top: 10px;"></div>
-    </div>
+    <h1>Excel Data Processor</h1>
+
+    <!-- File Upload -->
+    <label for="fileUpload">Upload Excel File:</label>
+    <input type="file" id="fileUpload" accept=".xlsx, .xls">
+
+    <!-- Output Log -->
+    <h2>Processing Log:</h2>
+    <pre id="outputLog">No file processed yet...</pre>
+
+    <!-- Download Button -->
+    <button id="downloadBtn" style="display:none;">Download Cleaned File</button>
 
     <script>
-        function processFile() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
+        let processedWorkbook;
+
+        document.getElementById('fileUpload').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            const outputLog = document.getElementById('outputLog');
+
             if (!file) {
-                showError("Please upload a file first.");
+                outputLog.textContent = "Please upload a valid Excel file.";
                 return;
             }
 
             const reader = new FileReader();
-            reader.onload = function (e) {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                // Process the first sheet
                 const sheetName = workbook.SheetNames[0];
-                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+                let worksheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-                console.log("Raw Data:", jsonData); // Debug: Log raw input data
+                outputLog.textContent = "Processing file...\n\n";
 
-                const reportType = detectReportType(jsonData);
-                const cleanedData = reportType === "TDBL" ? cleanTDBL(jsonData) : cleanITH(jsonData);
+                // Step 1: Delete the first 5 rows
+                worksheet = worksheet.slice(5);
 
-                downloadCleanedFile(cleanedData, file.name);
+                // Step 2: Set the new header row
+                const headers = worksheet[0];
+                worksheet = worksheet.slice(1);
+                worksheet = worksheet.map(row => {
+                    const obj = {};
+                    headers.forEach((header, i) => {
+                        obj[header.trim()] = row[i];
+                    });
+                    return obj;
+                });
+
+                // Step 3: Remove 'Declined' rows
+                worksheet = worksheet.filter(row => row['Status'] !== 'Declined' && row['Status'] !== 'Orphan Declined');
+
+                // Step 4: Replace 'Mode' values
+                worksheet.forEach(row => {
+                    if (row['Mode'] === 'Commuter Rail') row['Mode'] = 'Rail';
+                    else if (row['Mode'] === 'CCT') row['Mode'] = 'CCT';
+                    else row['Mode'] = 'Transit';
+                });
+
+                // Step 5: Drop 'Status' column
+                worksheet = worksheet.map(row => {
+                    delete row['Status'];
+                    return row;
+                });
+
+                // Step 6: Format 'Entry Date'
+                worksheet.forEach(row => {
+                    if (row['Entry Date']) {
+                        const date = new Date(row['Entry Date']);
+                        row['Entry Date'] = isNaN(date) ? '' : date.toLocaleDateString('en-US');
+                    }
+                });
+
+                outputLog.textContent += "File processed successfully!\n" +
+                    `- Rows after cleaning: ${worksheet.length}\n`;
+
+                // Store the cleaned data
+                const newSheet = XLSX.utils.json_to_sheet(worksheet);
+                processedWorkbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(processedWorkbook, newSheet, "Cleaned Data");
+
+                // Show download button
+                document.getElementById('downloadBtn').style.display = 'block';
             };
+
             reader.readAsArrayBuffer(file);
-        }
+        });
 
-        function detectReportType(data) {
-            return data.some(row => "Count Ridership" in row) ? "TDBL" : "ITH";
-        }
-
-        function cleanTDBL(data) {
-            let cleanedData = data.slice(5, -1); // Remove first 5 rows and last row
-
-            cleanedData = cleanedData.filter(row => row.Status !== "Declined" && row.Status !== "Orphan Declined");
-            cleanedData.forEach(row => {
-                row.Mode = mapMode(row.Mode);
-                row["Entry Date"] = formatDate(row["Entry Date"]);
-            });
-
-            return cleanedData.map(row => ({
-                "Entry Date": row["Entry Date"],
-                "Mode": row.Mode,
-                "Media Row ID": row["Media Row ID"],
-                "Product Type": row["Product Type"],
-                "Count Ridership": row["Count Ridership"]
-            }));
-        }
-
-        function cleanITH(data) {
-            let cleanedData = data.slice(5, -6); // Remove first 5 rows and last 6 rows
-
-            cleanedData = cleanedData.filter(row => row.Status !== "Declined" && row.Status !== "Orphan Declined");
-            cleanedData.forEach(row => {
-                row.Mode = mapMode(row.Mode);
-                row["Entry Date"] = formatDate(row["Entry Date"]);
-                row["Count Ridership"] = mapCountRidership(row["Transaction Type"]);
-            });
-
-            return cleanedData.map(row => ({
-                "Entry Date": row["Entry Date"],
-                "Mode": row.Mode,
-                "Media Row ID": row["Media Row ID"],
-                "Product Type": row["Product Type"],
-                "Count Ridership": row["Count Ridership"]
-            }));
-        }
-
-        function mapMode(mode) {
-            const modeMapping = {
-                "Commuter Rail": "Rail",
-                "CCT": "CCT",
-                "Paratransit": "CCT"
-            };
-            return modeMapping[mode] || "Transit";
-        }
-
-        function mapCountRidership(transactionType) {
-            return transactionType === "C" || transactionType === "D" ? 0 : transactionType === "R" ? -1 : 1;
-        }
-
-        function formatDate(entryDate) {
-            if (!entryDate) return "";
-            return entryDate.split(" ")[0]; // Keep only the date part
-        }
-
-        function downloadCleanedFile(data, originalFileName) {
-            const workbook = XLSX.utils.book_new();
-            const sheet = XLSX.utils.json_to_sheet(data);
-            XLSX.utils.book_append_sheet(workbook, sheet, "Cleaned Data");
-
-            const newFileName = originalFileName.replace(/\.[^/.]+$/, "") + " - Cleaned.xlsx";
-            XLSX.writeFile(workbook, newFileName);
-        }
-
-        function showError(message) {
-            document.getElementById("errorMessage").innerText = message;
-        }
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            if (processedWorkbook) {
+                XLSX.writeFile(processedWorkbook, "Cleaned_Data.xlsx");
+            }
+        });
     </script>
 </body>
 </html>
