@@ -6,7 +6,6 @@
     <title>Excel File Processor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        /* ... (previous styles remain the same) ... */
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
@@ -164,27 +163,20 @@
                 const sheetName = document.getElementById('sheetSelect').value;
                 debug(`Processing sheet: ${sheetName}`);
                 
-                // Read the worksheet
+                // Read the worksheet with specific options
                 const worksheet = workbook.Sheets[sheetName];
+                let df = XLSX.utils.sheet_to_json(worksheet, { 
+                    header: 1,
+                    raw: false,
+                    range: 5  // Start reading from row 6 (index 5)
+                });
                 
-                // Convert to JSON with header: 1 to get array of arrays
-                let df = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
-                debug(`Initial data rows: ${df.length}`);
-
-                // Get the headers from row 6 (index 5)
-                if (df.length < 6) {
-                    throw new Error('File does not contain enough rows. Expected at least 6 rows.');
-                }
-
-                const headers = df[5].map(h => h ? String(h).trim() : '');
+                // Get headers from the first row (now row 6 from the original sheet)
+                const headers = df[0].map(h => h ? String(h).trim() : '');
                 debug(`Headers found: ${headers.join(', ')}`);
-
-                // Get all data after the header row
-                df = df.slice(6);
-                debug(`After removing header and junk rows: ${df.length} rows`);
-
-                // Convert array of arrays to array of objects
-                df = df.map(row => {
+                
+                // Remove the header row and create array of objects
+                df = df.slice(1).map(row => {
                     const obj = {};
                     headers.forEach((header, i) => {
                         if (header && row[i] !== undefined) {
@@ -198,17 +190,14 @@
                 df = df.filter(row => Object.keys(row).length > 0);
                 debug(`After removing empty rows: ${df.length} rows`);
 
-                // Step 4: Remove rows based on Count Ridership presence
+                // Step 4: Remove last rows based on Count Ridership
                 const hasCountRidership = headers.includes('Count Ridership');
                 df = hasCountRidership ? df.slice(0, -1) : df.slice(0, -6);
-                debug(`After removing bottom rows: ${df.length} rows`);
 
                 // Step 5: Filter out declined status
-                if ('Status' in df[0]) {
-                    const beforeFilter = df.length;
-                    df = df.filter(row => row['Status'] && !['Declined', 'Orphan Declined'].includes(row['Status']));
-                    debug(`Filtered out ${beforeFilter - df.length} declined status rows`);
-                }
+                const beforeFilter = df.length;
+                df = df.filter(row => !['Declined', 'Orphan Declined'].includes(row['Status']));
+                debug(`Filtered out ${beforeFilter - df.length} declined status rows`);
 
                 // Step 6: Delete Status column
                 df = df.map(row => {
@@ -230,7 +219,7 @@
                 }));
 
                 // Step 9: Handle Count Ridership
-                if (!hasCountRidership && df.length > 0 && 'Transaction Type' in df[0]) {
+                if (!hasCountRidership && df.length > 0) {
                     df = df.map(row => ({
                         ...row,
                         'Count Ridership': row['Transaction Type'] === 'C' || row['Transaction Type'] === 'D' ? 0 :
@@ -244,10 +233,15 @@
                 df = df.map(row => {
                     const newRow = {};
                     requiredColumns.forEach(col => {
-                        if (col in row) newRow[col] = row[col];
+                        if (col in row) {
+                            newRow[col] = row[col] || '';  // Handle null/undefined values
+                        } else {
+                            newRow[col] = '';  // Add empty string for missing columns
+                        }
                     });
                     return newRow;
                 });
+
                 debug(`Final columns: ${Object.keys(df[0] || {}).join(', ')}`);
 
                 // Create new workbook and save
