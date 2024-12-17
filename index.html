@@ -57,18 +57,16 @@
 
             const reader = new FileReader();
             reader.onload = function (e) {
-                try {
-                    const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
-                    const sheetName = workbook.SheetNames[0];
-                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+                const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+                const sheetName = workbook.SheetNames[0];
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
 
-                    const reportType = detectReportType(jsonData);
-                    const cleanedData = reportType === "TDBL" ? cleanTDBL(jsonData) : cleanITH(jsonData);
+                console.log("Raw Data:", jsonData); // Debug: Log raw input data
 
-                    downloadCleanedFile(cleanedData, file.name);
-                } catch (error) {
-                    showError("Error processing file: " + error.message);
-                }
+                const reportType = detectReportType(jsonData);
+                const cleanedData = reportType === "TDBL" ? cleanTDBL(jsonData) : cleanITH(jsonData);
+
+                downloadCleanedFile(cleanedData, file.name);
             };
             reader.readAsArrayBuffer(file);
         }
@@ -87,11 +85,11 @@
             });
 
             return cleanedData.map(row => ({
-                "Entry Date": row["Entry Date"] || "",
-                "Mode": row.Mode || "",
-                "Media Row ID": row["Media Row ID"] || "",
-                "Product Type": row["Product Type"] || "",
-                "Count Ridership": row["Count Ridership"] || ""
+                "Entry Date": row["Entry Date"],
+                "Mode": row.Mode,
+                "Media Row ID": row["Media Row ID"],
+                "Product Type": row["Product Type"],
+                "Count Ridership": row["Count Ridership"]
             }));
         }
 
@@ -106,29 +104,30 @@
             });
 
             return cleanedData.map(row => ({
-                "Entry Date": row["Entry Date"] || "",
-                "Mode": row.Mode || "",
-                "Media Row ID": row["Media Row ID"] || "",
-                "Product Type": row["Product Type"] || "",
-                "Count Ridership": row["Count Ridership"] || ""
+                "Entry Date": row["Entry Date"],
+                "Mode": row.Mode,
+                "Media Row ID": row["Media Row ID"],
+                "Product Type": row["Product Type"],
+                "Count Ridership": row["Count Ridership"]
             }));
         }
 
         function mapMode(mode) {
-            if (mode === "Commuter Rail") return "Rail";
-            if (mode === "CCT" || mode === "Paratransit") return "CCT";
-            return "Transit";
+            const modeMapping = {
+                "Commuter Rail": "Rail",
+                "CCT": "CCT",
+                "Paratransit": "CCT"
+            };
+            return modeMapping[mode] || "Transit";
         }
 
         function mapCountRidership(transactionType) {
-            if (transactionType === "C" || transactionType === "D") return 0;
-            if (transactionType === "R") return -1;
-            return 1;
+            return transactionType === "C" || transactionType === "D" ? 0 : transactionType === "R" ? -1 : 1;
         }
 
         function formatDate(entryDate) {
             if (!entryDate) return "";
-            return entryDate.split(" ")[0];
+            return entryDate.split(" ")[0]; // Keep only the date part
         }
 
         function downloadCleanedFile(data, originalFileName) {
