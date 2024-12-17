@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mode Matrix Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -39,56 +40,69 @@
         button:hover {
             background-color: #0056b3;
         }
-        .download-link {
-            margin-top: 20px;
-            display: none;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Mode Matrix Generator</h1>
         <p>Upload your Excel file to generate a mode matrix with totals.</p>
-        <form id="uploadForm" action="/process" method="post" enctype="multipart/form-data">
-            <input type="file" name="file" id="fileInput" accept=".xlsx" required>
-            <button type="submit">Generate Matrix</button>
-        </form>
-        <div class="download-link" id="downloadLinkContainer">
-            <p>Download your processed file:</p>
-            <a id="downloadLink" href="#" download>Download Mode Matrix</a>
-        </div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" required>
+        <button onclick="processFile()">Generate Matrix</button>
     </div>
 
     <script>
-        const uploadForm = document.getElementById('uploadForm');
-        const downloadLinkContainer = document.getElementById('downloadLinkContainer');
-        const downloadLink = document.getElementById('downloadLink');
-
-        uploadForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-
-            const formData = new FormData(uploadForm);
-
-            try {
-                const response = await fetch('/process', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to process the file.');
-                }
-
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-
-                downloadLink.href = url;
-                downloadLink.download = 'Mode_Matrix.xlsx';
-                downloadLinkContainer.style.display = 'block';
-            } catch (error) {
-                alert('Error: ' + error.message);
+        function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a file first!');
+                return;
             }
-        });
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Get first sheet
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    // Process the data (add your matrix logic here)
+                    const processedData = processModeMatrix(jsonData);
+                    
+                    // Create new workbook and add processed data
+                    const newWorkbook = XLSX.utils.book_new();
+                    const newSheet = XLSX.utils.json_to_sheet(processedData);
+                    XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Mode Matrix');
+                    
+                    // Generate and download file
+                    XLSX.writeFile(newWorkbook, 'Mode_Matrix.xlsx');
+                } catch (error) {
+                    alert('Error processing file: ' + error.message);
+                }
+            };
+            
+            reader.onerror = function(error) {
+                alert('Error reading file: ' + error.message);
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processModeMatrix(data) {
+            // Add your matrix processing logic here
+            // This is a sample implementation that adds totals
+            return data.map(row => ({
+                ...row,
+                total: Object.values(row).reduce((sum, val) => 
+                    typeof val === 'number' ? sum + val : sum, 0)
+            }));
+        }
     </script>
 </body>
 </html>
