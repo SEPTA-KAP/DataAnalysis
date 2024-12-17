@@ -63,13 +63,9 @@
     <div class="container">
         <h1>Mode Matrix Generator</h1>
         <div class="instructions">
-            <p>Required columns in your Excel file:</p>
-            <ul>
-                <li>Mode</li>
-                <li>Media Row ID</li>
-                <li>Count Ridership</li>
-            </ul>
-        </div>
+            <p>Displays transit and rail taps for each Media Row ID, including totals.</p>
+            <p><b>Your data should already be cleaned before uploading.</b></p>
+            
         <div class="error" id="errorMessage"></div>
         <input type="file" id="fileInput" accept=".xlsx,.xls" required>
         <button onclick="processFile()">Generate Matrix</button>
