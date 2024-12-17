@@ -190,53 +190,72 @@
                 df = df.filter(row => Object.keys(row).length > 0);
                 debug(`After removing empty rows: ${df.length} rows`);
 
-                // Step 4: Remove last rows based on Count Ridership
+                // Remove last rows based on Count Ridership
                 const hasCountRidership = headers.includes('Count Ridership');
                 df = hasCountRidership ? df.slice(0, -1) : df.slice(0, -6);
 
-                // Step 5: Filter out declined status
+                // Filter out declined status
                 const beforeFilter = df.length;
                 df = df.filter(row => !['Declined', 'Orphan Declined'].includes(row['Status']));
                 debug(`Filtered out ${beforeFilter - df.length} declined status rows`);
 
-                // Step 6: Delete Status column
+                // Delete Status column
                 df = df.map(row => {
                     const { Status, ...rest } = row;
                     return rest;
                 });
 
-                // Step 7: Replace Mode values
+                // Replace Mode values
                 df = df.map(row => ({
                     ...row,
                     Mode: row.Mode === 'Commuter Rail' ? 'Rail' : 
                           (row.Mode === 'CCT' || row.Mode === 'Paratransit') ? 'CCT' : 'Transit'
                 }));
 
-                // Step 8: Format Entry Date
+                // Format Entry Date
                 df = df.map(row => ({
                     ...row,
                     'Entry Date': row['Entry Date'] ? new Date(row['Entry Date']).toLocaleDateString() : ''
                 }));
 
-                // Step 9: Handle Count Ridership
-                if (!hasCountRidership && df.length > 0) {
-                    df = df.map(row => ({
-                        ...row,
-                        'Count Ridership': row['Transaction Type'] === 'C' || row['Transaction Type'] === 'D' ? 0 :
-                                         row['Transaction Type'] === 'R' ? -1 : 1
-                    }));
-                    debug('Added Count Ridership column based on Transaction Type');
+                // Handle Count Ridership logic
+                if (hasCountRidership) {
+                    // If Count Ridership exists, remove Transaction Type
+                    df = df.map(row => {
+                        const { 'Transaction Type': _, ...rest } = row;
+                        return rest;
+                    });
+                    debug('Removed Transaction Type column as Count Ridership exists');
+                } else {
+                    // Create Count Ridership from Transaction Type
+                    df = df.map(row => {
+                        let countRidership;
+                        if (row['Transaction Type'] === 'R') {
+                            countRidership = '(1)';
+                        } else if (row['Transaction Type'] === 'C' || row['Transaction Type'] === 'D') {
+                            countRidership = '0';
+                        } else {
+                            countRidership = '1';
+                        }
+                        
+                        const { 'Transaction Type': _, ...rest } = row;
+                        return {
+                            ...rest,
+                            'Count Ridership': countRidership
+                        };
+                    });
+                    debug('Created Count Ridership column from Transaction Type');
                 }
 
                 // Keep only required columns
-                const requiredColumns = ['Entry Date', 'Mode', 'Media Row ID', 'Product Type', 'Transaction Type', 'Count Ridership'];
+                const requiredColumns = ['Entry Date', 'Mode', 'Media Row ID', 'Product Type', 'Count Ridership'];
                 df = df.map(row => {
                     const newRow = {};
                     requiredColumns.forEach(col => {
                         if (col in row) {
-                            newRow[col] = row[col] || '';  // Handle null/undefined values
+                            newRow[col] = row[col] || '';
                         } else {
-                            newRow[col] = '';  // Add empty string for missing columns
+                            newRow[col] = '';
                         }
                     });
                     return newRow;
