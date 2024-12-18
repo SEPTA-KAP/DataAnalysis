@@ -50,25 +50,33 @@
             width: 375px;
             margin: 30px auto;
             text-align: center;
+            transition: background-color 0.3s, color 0.3s, opacity 0.3s;
         }
 
+        .container:hover {
+            background-color: #294d5a;
+            opacity: 0.9
+        }
+
+        .container:hover h1,
+        .container:hover p {
+            color: white;
+        }
 
         .container h1 {
             margin-bottom: 20px;
             color: #030331;
-        }
-
-        .container h1:hover {
-            color: #294d5a;
+            fill-opacity: .8;
         }
 
         .container p {
             margin: 10px 0;
-            color: #000000
+            color: #000000;
+            transition: color 0.3s;
         }
 
         .container p:hover {
-            color: #294d5a;
+            color: #ffffff;
         }
 
 
