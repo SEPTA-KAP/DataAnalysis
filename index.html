@@ -24,6 +24,7 @@
             margin: 20px 0;
             width: 90%;
             max-width: 800px;
+            overflow-y: auto;
         }
         .input-group {
             margin-bottom: 15px;
@@ -47,7 +48,6 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            margin: 10px 0;
         }
         button:hover {
             background-color: #356083;
@@ -109,20 +109,20 @@
         </p>
         
         <div class="input-group">
-            <label for="fileInput">Select Excel File:</label>
-            <input type="file" id="fileInput" accept=".xlsx,.xls">
+            <label for="cleanerFileInput">Select Excel File:</label>
+            <input type="file" id="cleanerFileInput" accept=".xlsx,.xls">
         </div>
         
         <div class="input-group">
-            <label for="sheetSelect">Select Sheet:</label>
-            <select id="sheetSelect"></select>
+            <label for="cleanerSheetSelect">Select Sheet:</label>
+            <select id="cleanerSheetSelect"></select>
         </div>
         
-        <button onclick="processFile()">Process File</button>
+        <button onclick="processCleanerFile()">Process File</button>
         
-        <div id="status" class="status"></div>
-        <div id="debugOutput"></div>
-        <div id="preview"></div>
+        <div id="cleanerStatus" class="status"></div>
+        <div id="cleanerDebugOutput"></div>
+        <div id="cleanerPreview"></div>
     </div>
 
     <!-- Mode Matrix Generator Container -->
@@ -132,22 +132,22 @@
             <p>This tool takes cleaned ridership data and breaks down transit, rail, and CCT trips by unique Media Row ID.
                 Ensure your data is cleaned before uploading. If you're not sure, check for "-Cleaned data" at the end of your file name.</p>
         </div>
-        <div class="error" id="errorMessage"></div>
+        <div class="error" id="matrixErrorMessage"></div>
         <input type="file" id="matrixFileInput" accept=".xlsx,.xls" required>
         <button onclick="processMatrixFile()">Generate Matrix</button>
     </div>
 
     <script>
         // Data Cleaner Script
-        let workbook = null;
+        let cleanerWorkbook = null;
 
         function debug(message) {
             console.log(message);
-            const debugOutput = document.getElementById('debugOutput');
+            const debugOutput = document.getElementById('cleanerDebugOutput');
             debugOutput.textContent += message + '\n';
         }
 
-        document.getElementById('fileInput').addEventListener('change', function(e) {
+        document.getElementById('cleanerFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             debug(`File selected: ${file.name}`);
             
@@ -156,12 +156,12 @@
             reader.onload = function(e) {
                 try {
                     debug('Reading file...');
-                    workbook = XLSX.read(e.target.result, { type: 'array' });
-                    debug(`File read successfully. Sheets found: ${workbook.SheetNames.join(', ')}`);
+                    cleanerWorkbook = XLSX.read(e.target.result, { type: 'array' });
+                    debug(`File read successfully. Sheets found: ${cleanerWorkbook.SheetNames.join(', ')}`);
                     updateSheetList();
                 } catch (error) {
                     debug(`Error reading file: ${error.message}`);
-                    showStatus('Error reading file: ' + error.message, 'error');
+                    showCleanerStatus('Error reading file: ' + error.message, 'error');
                 }
             };
             
@@ -169,10 +169,10 @@
         });
 
         function updateSheetList() {
-            const sheetSelect = document.getElementById('sheetSelect');
+            const sheetSelect = document.getElementById('cleanerSheetSelect');
             sheetSelect.innerHTML = '';
             
-            workbook.SheetNames.forEach(sheetName => {
+            cleanerWorkbook.SheetNames.forEach(sheetName => {
                 const option = document.createElement('option');
                 option.value = sheetName;
                 option.textContent = sheetName;
@@ -181,19 +181,19 @@
             debug('Sheet list updated');
         }
 
-        function processFile() {
+        function processCleanerFile() {
             debug('Starting file processing...');
-            document.getElementById('debugOutput').textContent = '';
+            document.getElementById('cleanerDebugOutput').textContent = '';
             
             try {
-                if (!workbook) {
+                if (!cleanerWorkbook) {
                     throw new Error('Please select a file first.');
                 }
 
-                const sheetName = document.getElementById('sheetSelect').value;
+                const sheetName = document.getElementById('cleanerSheetSelect').value;
                 debug(`Processing sheet: ${sheetName}`);
                 
-                const worksheet = workbook.Sheets[sheetName];
+                const worksheet = cleanerWorkbook.Sheets[sheetName];
                 let df = XLSX.utils.sheet_to_json(worksheet, { 
                     header: 1,
                     raw: false,
@@ -284,24 +284,24 @@
                 const newWorksheet = XLSX.utils.json_to_sheet(df);
                 XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, sheetName);
 
-                const fileName = document.getElementById('fileInput').files[0].name;
+                const fileName = document.getElementById('cleanerFileInput').files[0].name;
                 const newFileName = fileName.replace(/\.[^/.]+$/, '') + ' - Cleaned Data.xlsx';
                 debug(`Saving to file: ${newFileName}`);
                 XLSX.writeFile(newWorkbook, newFileName);
 
                 showPreview(df);
-                showStatus('File processed successfully! Download should begin automatically.', 'success');
+                showCleanerStatus('File processed successfully! Download should begin automatically.', 'success');
                 debug('Processing complete');
 
             } catch (error) {
                 debug(`Error during processing: ${error.message}`);
-                showStatus(`Error processing file: ${error.message}`, 'error');
+                showCleanerStatus(`Error processing file: ${error.message}`, 'error');
             }
         }
 
         function showPreview(data) {
             try {
-                const preview = document.getElementById('preview');
+                const preview = document.getElementById('cleanerPreview');
                 if (!data || data.length === 0) {
                     preview.innerHTML = '<p>No data to display</p>';
                     return;
@@ -330,8 +330,8 @@
             }
         }
 
-        function showStatus(message, type) {
-            const status = document.getElementById('status');
+        function showCleanerStatus(message, type) {
+            const status = document.getElementById('cleanerStatus');
             status.textContent = message;
             status.className = 'status ' + type;
             debug(`Status: ${message}`);
@@ -339,7 +339,7 @@
 
         // Mode Matrix Generator Script
         function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
+            const errorDiv = document.getElementById('matrixErrorMessage');
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
         }
@@ -424,9 +424,3 @@
                     
                     const newWorkbook = XLSX.utils.book_new();
                     const newSheet = XLSX.utils.json_to_sheet(processedData);
-
-                    const maxWidths = {};
-                    processedData.forEach(row => {
-                        Object.entries(row).forEach(([key, value]) => {
-                            const valueLength = String(value).length;
-                            maxWidths[key] = Math.max(maxWidths[key] ||
