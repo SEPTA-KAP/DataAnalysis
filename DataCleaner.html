@@ -6,136 +6,181 @@
     <title>Crystal Ridership Report Cleaner</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body {
-            font-family: 'cambria', arial;
-            background-color: #030331;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
+        :root {
+            --primary-color: #030331;
+            --secondary-color: #294d5a;
+            --white: #ffffff;
+            --error-bg: #f2dede;
+            --error-text: #a94442;
+            --success-bg: #dff0d8;
+            --success-text: #2d4821;
         }
 
-       /* White bar at the top with links */
-       .header {
-            background-color: white;
-            padding: 10px 0;
+        body {
+            font-family: 'Cambria', system-ui, -apple-system, sans-serif;
+            background-color: var(--primary-color);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background-color: var(--white);
+            padding: 1rem 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            gap: 1rem;
+            flex-wrap: wrap;
         }
 
         .header a {
-            color: #030331;
+            color: var(--primary-color);
             text-decoration: none;
             font-weight: bold;
-            border-radius: 8px;
-            margin: 0 20px;
-            padding: 10px;
-            transition: background-color 0.3s;
+            padding: 0.625rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
         }
 
         .header a:hover {
-            background-color: #294d5a;
-            border-radius: 8px;
-            color: white;
+            background-color: var(--secondary-color);
+            color: var(--white);
         }
 
         .container {
-            text-align: center;
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 8px;
+            background-color: var(--white);
+            padding: 2rem;
+            border-radius: 0.5rem;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-width: 375px;
-            margin: 30px auto;
-            transition: background-color 0.3s, color 0.3s, opacity 0.3s;
+            max-width: 800px;
+            margin: 2rem auto;
+            width: 90%;
         }
+
         .input-group {
-            margin-bottom: 15px;
+            margin-bottom: 1.5rem;
         }
+
         label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 0.5rem;
             font-weight: bold;
+            color: var(--primary-color);
         }
+
         input, select {
             width: 100%;
-            padding: 8px;
-            margin-bottom: 10px;
-            border: 1px solid #030331;
-            border-radius: 4px;
+            padding: 0.75rem;
+            border: 1px solid var(--primary-color);
+            border-radius: 0.25rem;
+            margin-bottom: 0.5rem;
         }
+
         button {
-            background-color: #030331;
-            color: rgb(255, 255, 255);
-            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 0.75rem 1.5rem;
             border: none;
-            border-radius: 4px;
+            border-radius: 0.25rem;
             cursor: pointer;
+            transition: background-color 0.3s ease;
         }
+
         button:hover {
-            background-color: #294d5a;
+            background-color: var(--secondary-color);
         }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin: 1rem 0;
+            padding: 1rem;
+            border-radius: 0.25rem;
+        }
+
+        .success {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+        }
+
+        .error {
+            background-color: var(--error-bg);
+            color: var(--error-text);
+        }
+
         #preview {
-            margin-top: 20px;
             overflow-x: auto;
+            margin-top: 1.5rem;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 1rem;
+            font-size: 0.875rem;
         }
+
         th, td {
-            border: 1px solid #ffffff;
-            padding: 8px;
+            border: 1px solid #ddd;
+            padding: 0.75rem;
             text-align: left;
         }
+
         th {
-            background-color: #030331;
-            color: white;
+            background-color: var(--primary-color);
+            color: var(--white);
         }
-        .status {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 4px;
+
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
         }
-        .success {
-            background-color: #dff0d8;
-            color: #030331;
-        }
-        .error {
-            background-color: #f2dede;
-            color: #a94442;
-        }
+
         #debugOutput {
-            margin-top: 20px;
-            padding: 10px;
+            margin-top: 1.5rem;
+            padding: 1rem;
             background-color: #f8f9fa;
             border: 1px solid #ddd;
-            border-radius: 4px;
+            border-radius: 0.25rem;
             white-space: pre-wrap;
             font-family: monospace;
+            font-size: 0.875rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress {
+            width: 0%;
+            height: 100%;
+            background-color: var(--primary-color);
+            transition: width 0.3s ease;
         }
     </style>
 </head>
 <body>
-    <!-- White bar with links -->
     <div class="header">
         <a href="index.html">Home</a>
         <a href="DataCleaner.html">Data Cleaner</a>
-        <a href="modematrix.html">Mode Matrix Generator</a>
-        <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
-        <a href="weekdaymatrix.html">Weekday Mode Matrix</a>
+        <a href="modematrix.html">Mode Matrix</a>
+        <a href="monthyearmatrix.html">Month-Year Matrix</a>
+        <a href="weekdaymatrix.html">Weekday Matrix</a>
     </div>
 
     <div class="container">
         <h1>KAP Data Cleaner</h1>
-        <p>This program processes raw ridership reports to further create martices below.
-            If you intend to create matrices, ensure you filter out unwanted product types and unwanted/
-extra dates included by Crystal Reports before uploading into a matrix generator.
-        </p>
+        <p>This tool processes raw ridership reports for matrix generation. Please ensure your data is properly filtered for product types and dates before proceeding with matrix generation.</p>
         
         <div class="input-group">
             <label for="fileInput">Select Excel File:</label>
@@ -144,49 +189,81 @@ extra dates included by Crystal Reports before uploading into a matrix generator
         
         <div class="input-group">
             <label for="sheetSelect">Select Sheet:</label>
-            <select id="sheetSelect"></select>
+            <select id="sheetSelect" disabled>
+                <option value="">Please upload a file first</option>
+            </select>
+        </div>
+
+        <div class="progress-bar" style="display: none;">
+            <div class="progress"></div>
         </div>
         
-        <button onclick="processFile()">Process File</button>
+        <button id="processButton" onclick="processFile()" disabled>Process File</button>
         
-        <div id="status" class="status"></div>
+        <div id="status" class="status" style="display: none;"></div>
         <div id="debugOutput"></div>
         <div id="preview"></div>
     </div>
 
     <script>
         let workbook = null;
+        const processButton = document.getElementById('processButton');
+        const sheetSelect = document.getElementById('sheetSelect');
+        const progressBar = document.querySelector('.progress-bar');
+        const progress = document.querySelector('.progress');
 
         function debug(message) {
             console.log(message);
             const debugOutput = document.getElementById('debugOutput');
-            debugOutput.textContent += message + '\n';
+            const timestamp = new Date().toISOString();
+            debugOutput.textContent += `[${timestamp}] ${message}\n`;
         }
 
-        document.getElementById('fileInput').addEventListener('change', function(e) {
+        function validateWorkbook(wb) {
+            if (!wb || !wb.SheetNames || wb.SheetNames.length === 0) {
+                throw new Error('Invalid workbook format');
+            }
+            return true;
+        }
+
+        function validateRequiredColumns(headers) {
+            const required = ['Entry Date', 'Mode', 'Media Row ID', 'Product Type'];
+            const missing = required.filter(col => !headers.includes(col));
+            if (missing.length > 0) {
+                throw new Error(`Missing required columns: ${missing.join(', ')}`);
+            }
+            return true;
+        }
+
+        document.getElementById('fileInput').addEventListener('change', async function(e) {
             const file = e.target.files[0];
-            debug(`File selected: ${file.name}`);
-            
-            const reader = new FileReader();
-            
-            reader.onload = function(e) {
-                try {
-                    debug('Reading file...');
-                    workbook = XLSX.read(e.target.result, { type: 'array' });
-                    debug(`File read successfully. Sheets found: ${workbook.SheetNames.join(', ')}`);
-                    updateSheetList();
-                } catch (error) {
-                    debug(`Error reading file: ${error.message}`);
-                    showStatus('Error reading file: ' + error.message, 'error');
-                }
-            };
-            
-            reader.readAsArrayBuffer(file);
+            if (!file) return;
+
+            try {
+                debug(`Reading file: ${file.name}`);
+                showProgress(true);
+                
+                const buffer = await file.arrayBuffer();
+                workbook = XLSX.read(buffer, { type: 'array' });
+                
+                validateWorkbook(workbook);
+                updateSheetList();
+                
+                processButton.disabled = false;
+                debug('File loaded successfully');
+                showStatus('File loaded successfully. Please select a sheet and process.', 'success');
+            } catch (error) {
+                debug(`Error reading file: ${error.message}`);
+                showStatus(error.message, 'error');
+                processButton.disabled = true;
+            } finally {
+                showProgress(false);
+            }
         });
 
         function updateSheetList() {
-            const sheetSelect = document.getElementById('sheetSelect');
             sheetSelect.innerHTML = '';
+            sheetSelect.disabled = false;
             
             workbook.SheetNames.forEach(sheetName => {
                 const option = document.createElement('option');
@@ -194,35 +271,74 @@ extra dates included by Crystal Reports before uploading into a matrix generator
                 option.textContent = sheetName;
                 sheetSelect.appendChild(option);
             });
-            debug('Sheet list updated');
         }
 
-        function processFile() {
+        async function processFile() {
             debug('Starting file processing...');
             document.getElementById('debugOutput').textContent = '';
+            showProgress(true);
+            processButton.disabled = true;
             
             try {
                 if (!workbook) {
                     throw new Error('Please select a file first.');
                 }
 
-                const sheetName = document.getElementById('sheetSelect').value;
-                debug(`Processing sheet: ${sheetName}`);
-                
-                // Read the worksheet with specific options
+                const sheetName = sheetSelect.value;
                 const worksheet = workbook.Sheets[sheetName];
-                let df = XLSX.utils.sheet_to_json(worksheet, { 
+                
+                // Read data starting from row 6
+                let data = XLSX.utils.sheet_to_json(worksheet, { 
                     header: 1,
                     raw: false,
-                    range: 5  // Start reading from row 6 (index 5)
+                    range: 5
                 });
+
+                if (!data || data.length === 0) {
+                    throw new Error('No data found in the selected sheet');
+                }
+
+                const headers = data[0].map(h => h ? String(h).trim() : '');
+                validateRequiredColumns(headers);
+
+                // Process data in chunks to avoid browser freezing
+                const chunkSize = 1000;
+                let processedData = [];
                 
-                // Get headers from the first row (now row 6 from the original sheet)
-                const headers = df[0].map(h => h ? String(h).trim() : '');
-                debug(`Headers found: ${headers.join(', ')}`);
-                
-                // Remove the header row and create array of objects
-                df = df.slice(1).map(row => {
+                for (let i = 1; i < data.length; i += chunkSize) {
+                    const chunk = data.slice(i, i + chunkSize);
+                    const processed = await processDataChunk(chunk, headers);
+                    processedData = processedData.concat(processed);
+                    
+                    // Update progress
+                    const progress = Math.min(((i + chunkSize) / data.length) * 100, 100);
+                    updateProgress(progress);
+                }
+
+                // Create and save new workbook
+                const newWorkbook = XLSX.utils.book_new();
+                const newWorksheet = XLSX.utils.json_to_sheet(processedData);
+                XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, 'Cleaned Data');
+
+                const fileName = document.getElementById('fileInput').files[0].name;
+                const newFileName = fileName.replace(/\.[^/.]+$/, '') + ' - Cleaned.xlsx';
+                XLSX.writeFile(newWorkbook, newFileName);
+
+                showPreview(processedData);
+                showStatus('File processed successfully! Download has started.', 'success');
+                debug('Processing complete');
+            } catch (error) {
+                debug(`Error during processing: ${error.message}`);
+                showStatus(error.message, 'error');
+            } finally {
+                showProgress(false);
+                processButton.disabled = false;
+            }
+        }
+
+        async function processDataChunk(chunk, headers) {
+            return chunk
+                .map(row => {
                     const obj = {};
                     headers.forEach((header, i) => {
                         if (header && row[i] !== undefined) {
@@ -230,155 +346,84 @@ extra dates included by Crystal Reports before uploading into a matrix generator
                         }
                     });
                     return obj;
-                });
-
-                // Remove empty rows
-                df = df.filter(row => Object.keys(row).length > 0);
-                debug(`After removing empty rows: ${df.length} rows`);
-
-                // Remove last rows based on Count Ridership
-                const hasCountRidership = headers.includes('Count Ridership');
-                df = hasCountRidership ? df.slice(0, -1) : df.slice(0, -6);
-
-                // Filter out declined status
-                const beforeFilter = df.length;
-                df = df.filter(row => !['Declined', 'Orphan Declined'].includes(row['Status']));
-                debug(`Filtered out ${beforeFilter - df.length} declined status rows`);
-
-                // Delete Status column
-                df = df.map(row => {
+                })
+                .filter(row => {
+                    // Remove empty rows and declined status
+                    return Object.keys(row).length > 0 && 
+                           !['Declined', 'Orphan Declined'].includes(row['Status']);
+                })
+                .map(row => {
+                    // Transform data
                     const { Status, ...rest } = row;
-                    return rest;
+                    return {
+                        ...rest,
+                        Mode: transformMode(row.Mode),
+                        'Entry Date': formatDate(row['Entry Date']),
+                        'Count Ridership': calculateRidership(row)
+                    };
                 });
+        }
 
-                // Replace Mode values
-                df = df.map(row => ({
-                    ...row,
-                    Mode: row.Mode === 'Commuter Rail' ? 'Rail' : 
-                          (row.Mode === 'CCT' || row.Mode === 'Paratransit') ? 'CCT' : 'Transit'
-                }));
+        function transformMode(mode) {
+            if (mode === 'Commuter Rail') return 'Rail';
+            if (['CCT', 'Paratransit'].includes(mode)) return 'CCT';
+            return 'Transit';
+        }
 
-                // Format Entry Date
-                df = df.map(row => ({
-                    ...row,
-                    'Entry Date': row['Entry Date'] ? new Date(row['Entry Date']).toLocaleDateString() : ''
-                }));
-
-                // Handle Count Ridership logic
-                if (hasCountRidership) {
-                    // If Count Ridership exists, remove Transaction Type
-                    df = df.map(row => {
-                        const { 'Transaction Type': _, ...rest } = row;
-                        return rest;
-                    });
-                    debug('Removed Transaction Type column as Count Ridership exists');
-                } else {
-                    // Create Count Ridership from Transaction Type
-                    df = df.map(row => {
-                        let countRidership;
-                        if (row['Transaction Type'] === 'R') {
-                            countRidership = '(1)';
-                        } else if (row['Transaction Type'] === 'C' || row['Transaction Type'] === 'D') {
-                            countRidership = '0';
-                        } else {
-                            countRidership = '1';
-                        }
-                        
-                        const { 'Transaction Type': _, ...rest } = row;
-                        return {
-                            ...rest,
-                            'Count Ridership': countRidership
-                        };
-                    });
-                    debug('Created Count Ridership column from Transaction Type');
-                }
-
-                // Keep only required columns
-                const requiredColumns = ['Entry Date', 'Mode', 'Media Row ID', 'Product Type', 'Count Ridership'];
-                df = df.map(row => {
-                    const newRow = {};
-                    requiredColumns.forEach(col => {
-                        if (col in row) {
-                            newRow[col] = row[col] || '';
-                        } else {
-                            newRow[col] = '';
-                        }
-                    });
-                    return newRow;
-                });
-
-                debug(`Final columns: ${Object.keys(df[0] || {}).join(', ')}`);
-
-                // Create new workbook and save
-                debug('Creating new workbook...');
-                const newWorkbook = XLSX.utils.book_new();
-                const newWorksheet = XLSX.utils.json_to_sheet(df);
-                XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, sheetName);
-
-                // Save file
-                const fileName = document.getElementById('fileInput').files[0].name;
-                const newFileName = fileName.replace(/\.[^/.]+$/, '') + ' - Cleaned Data.xlsx';
-                debug(`Saving to file: ${newFileName}`);
-                XLSX.writeFile(newWorkbook, newFileName);
-
-                // Show preview
-                showPreview(df);
-                showStatus('File processed successfully! Download should begin automatically.', 'success');
-                debug('Processing complete');
-
-            } catch (error) {
-                debug(`Error during processing: ${error.message}`);
-                showStatus(`Error processing file: ${error.message}`, 'error');
+        function formatDate(date) {
+            try {
+                return date ? new Date(date).toLocaleDateString() : '';
+            } catch {
+                return '';
             }
         }
 
-        function showPreview(data) {
-            try {
-                const preview = document.getElementById('preview');
-                if (!data || data.length === 0) {
-                    preview.innerHTML = '<p>No data to display</p>';
-                    return;
-                }
+        function calculateRidership(row) {
+            if (row['Count Ridership']) return row['Count Ridership'];
+            if (row['Transaction Type'] === 'R') return '(1)';
+            if (['C', 'D'].includes(row['Transaction Type'])) return '0';
+            return '1';
+        }
 
-                const headers = Object.keys(data[0] || {});
-                let table = '<table><tr>';
+        function showPreview(data) {
+            const preview = document.getElementById('preview');
+            if (!data || data.length === 0) {
+                preview.innerHTML = '<p>No data to display</p>';
+                return;
+            }
+
+            const headers = Object.keys(data[0]);
+            let table = '<h3>Preview (First 10 rows)</h3><table><tr>';
+            headers.forEach(header => table += `<th>${header}</th>`);
+            table += '</tr>';
+
+            data.slice(0, 10).forEach(row => {
+                table += '<tr>';
                 headers.forEach(header => {
-                    table += `<th>${header}</th>`;
+                    table += `<td>${row[header] || ''}</td>`;
                 });
                 table += '</tr>';
+            });
+            table += '</table>';
 
-                data.slice(0, 10).forEach(row => {
-                    table += '<tr>';
-                    headers.forEach(header => {
-                        table += `<td>${row[header] || ''}</td>`;
-                    });
-                    table += '</tr>';
-                });
-                table += '</table>';
-
-                preview.innerHTML = '<h3>Preview (First 10 rows)</h3>' + table;
-                debug('Preview table generated');
-            } catch (error) {
-                debug(`Error generating preview: ${error.message}`);
-            }
+            preview.innerHTML = table;
         }
 
         function showStatus(message, type) {
             const status = document.getElementById('status');
+            status.style.display = 'block';
             status.textContent = message;
-            status.className = 'status ' + type;
-            debug(`Status: ${message}`);
+            status.className = `status ${type}`;
+        }
+
+        function showProgress(show) {
+            progressBar.style.display = show ? 'block' : 'none';
+            if (!show) updateProgress(0);
+        }
+
+        function updateProgress(value) {
+            progress.style.width = `${value}%`;
         }
     </script>
-    <div class="container">
-        <h1>What does this data cleaner do?</h1>
-        <p>This data cleaner removes extraneous rows and columns not needed for 
-            further analysis in this system, as well as calculates missing columns
-            for more accurate data.
-
-        </p>
-    </div>
-
 </body>
-
 </html>
