@@ -3,29 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crystal Ridership Report Cleaner</title>
+    <title>KAP Data Processing Tools</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Meriweather', serif;
             background-color: #030331;
             margin: 0;
-            padding: 10;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            max-width: 500px;
-            margin: 0 auto;
             padding: 20px;
-            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         .container {
             background-color: #ffffff;
             padding: 48px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow-y: auto;
+            margin: 20px 0;
+            width: 90%;
+            max-width: 800px;
         }
         .input-group {
             margin-bottom: 15px;
@@ -49,6 +47,7 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            margin: 10px 0;
         }
         button:hover {
             background-color: #356083;
@@ -63,7 +62,7 @@
             margin-top: 10px;
         }
         th, td {
-            border: 1px solid #ffffff;
+            border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
@@ -93,12 +92,19 @@
             white-space: pre-wrap;
             font-family: monospace;
         }
+        .instructions {
+            text-align: left;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #030331;
+        }
     </style>
 </head>
 <body>
+    <!-- Data Cleaner Container -->
     <div class="container">
         <h1>KAP Data Cleaner</h1>
-        <p>This program processes raw ridership reports to further create martices below.
+        <p>This program processes raw ridership reports to further create matrices below.
             If you intend to create matrices, ensure you filter out unwanted product types and unwanted/extra dates included by Crystal Reports before uploading into a matrix generator.
         </p>
         
@@ -119,7 +125,20 @@
         <div id="preview"></div>
     </div>
 
+    <!-- Mode Matrix Generator Container -->
+    <div class="container">
+        <h1>Mode Matrix Generator</h1>
+        <div class="instructions">
+            <p>This tool takes cleaned ridership data and breaks down transit, rail, and CCT trips by unique Media Row ID.
+                Ensure your data is cleaned before uploading. If you're not sure, check for "-Cleaned data" at the end of your file name.</p>
+        </div>
+        <div class="error" id="errorMessage"></div>
+        <input type="file" id="matrixFileInput" accept=".xlsx,.xls" required>
+        <button onclick="processMatrixFile()">Generate Matrix</button>
+    </div>
+
     <script>
+        // Data Cleaner Script
         let workbook = null;
 
         function debug(message) {
@@ -174,19 +193,16 @@
                 const sheetName = document.getElementById('sheetSelect').value;
                 debug(`Processing sheet: ${sheetName}`);
                 
-                // Read the worksheet with specific options
                 const worksheet = workbook.Sheets[sheetName];
                 let df = XLSX.utils.sheet_to_json(worksheet, { 
                     header: 1,
                     raw: false,
-                    range: 5  // Start reading from row 6 (index 5)
+                    range: 5
                 });
                 
-                // Get headers from the first row (now row 6 from the original sheet)
                 const headers = df[0].map(h => h ? String(h).trim() : '');
                 debug(`Headers found: ${headers.join(', ')}`);
                 
-                // Remove the header row and create array of objects
                 df = df.slice(1).map(row => {
                     const obj = {};
                     headers.forEach((header, i) => {
@@ -197,48 +213,39 @@
                     return obj;
                 });
 
-                // Remove empty rows
                 df = df.filter(row => Object.keys(row).length > 0);
                 debug(`After removing empty rows: ${df.length} rows`);
 
-                // Remove last rows based on Count Ridership
                 const hasCountRidership = headers.includes('Count Ridership');
                 df = hasCountRidership ? df.slice(0, -1) : df.slice(0, -6);
 
-                // Filter out declined status
                 const beforeFilter = df.length;
                 df = df.filter(row => !['Declined', 'Orphan Declined'].includes(row['Status']));
                 debug(`Filtered out ${beforeFilter - df.length} declined status rows`);
 
-                // Delete Status column
                 df = df.map(row => {
                     const { Status, ...rest } = row;
                     return rest;
                 });
 
-                // Replace Mode values
                 df = df.map(row => ({
                     ...row,
                     Mode: row.Mode === 'Commuter Rail' ? 'Rail' : 
                           (row.Mode === 'CCT' || row.Mode === 'Paratransit') ? 'CCT' : 'Transit'
                 }));
 
-                // Format Entry Date
                 df = df.map(row => ({
                     ...row,
                     'Entry Date': row['Entry Date'] ? new Date(row['Entry Date']).toLocaleDateString() : ''
                 }));
 
-                // Handle Count Ridership logic
                 if (hasCountRidership) {
-                    // If Count Ridership exists, remove Transaction Type
                     df = df.map(row => {
                         const { 'Transaction Type': _, ...rest } = row;
                         return rest;
                     });
                     debug('Removed Transaction Type column as Count Ridership exists');
                 } else {
-                    // Create Count Ridership from Transaction Type
                     df = df.map(row => {
                         let countRidership;
                         if (row['Transaction Type'] === 'R') {
@@ -258,7 +265,6 @@
                     debug('Created Count Ridership column from Transaction Type');
                 }
 
-                // Keep only required columns
                 const requiredColumns = ['Entry Date', 'Mode', 'Media Row ID', 'Product Type', 'Count Ridership'];
                 df = df.map(row => {
                     const newRow = {};
@@ -274,19 +280,15 @@
 
                 debug(`Final columns: ${Object.keys(df[0] || {}).join(', ')}`);
 
-                // Create new workbook and save
-                debug('Creating new workbook...');
                 const newWorkbook = XLSX.utils.book_new();
                 const newWorksheet = XLSX.utils.json_to_sheet(df);
                 XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, sheetName);
 
-                // Save file
                 const fileName = document.getElementById('fileInput').files[0].name;
                 const newFileName = fileName.replace(/\.[^/.]+$/, '') + ' - Cleaned Data.xlsx';
                 debug(`Saving to file: ${newFileName}`);
                 XLSX.writeFile(newWorkbook, newFileName);
 
-                // Show preview
                 showPreview(df);
                 showStatus('File processed successfully! Download should begin automatically.', 'success');
                 debug('Processing complete');
@@ -334,6 +336,97 @@
             status.className = 'status ' + type;
             debug(`Status: ${message}`);
         }
-    </script>
-</body>
-</html>
+
+        // Mode Matrix Generator Script
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function createPivotTable(data) {
+            const requiredColumns = ['Mode', 'Media Row ID', 'Count Ridership'];
+            const headers = Object.keys(data[0]);
+            
+            if (!requiredColumns.every(col => headers.includes(col))) {
+                throw new Error('Required columns missing. Please ensure your file has: Mode, Media Row ID, and Count Ridership columns.');
+            }
+
+            const pivot = {};
+            const modes = new Set();
+
+            data.forEach(row => {
+                const mediaRowId = row['Media Row ID'];
+                const mode = row['Mode'];
+                const count = Number(row['Count Ridership']) || 0;
+
+                modes.add(mode);
+                
+                if (!pivot[mediaRowId]) {
+                    pivot[mediaRowId] = {};
+                }
+                
+                if (!pivot[mediaRowId][mode]) {
+                    pivot[mediaRowId][mode] = 0;
+                }
+                
+                pivot[mediaRowId][mode] += count;
+            });
+
+            const modesArray = Array.from(modes);
+            const resultArray = Object.entries(pivot).map(([mediaRowId, modeData]) => {
+                const row = {
+                    'Media Row ID': mediaRowId
+                };
+
+                modesArray.forEach(mode => {
+                    row[mode] = modeData[mode] || 0;
+                });
+
+                row['Total'] = (row['Transit'] || 0) + (row['Rail'] || 0);
+
+                return row;
+            });
+
+            const grandTotal = {
+                'Media Row ID': 'Grand Total'
+            };
+            
+            modesArray.forEach(mode => {
+                grandTotal[mode] = resultArray.reduce((sum, row) => sum + (row[mode] || 0), 0);
+            });
+            
+            grandTotal['Total'] = (grandTotal['Transit'] || 0) + (grandTotal['Rail'] || 0);
+            
+            resultArray.push(grandTotal);
+
+            return resultArray;
+        }
+
+        function processMatrixFile() {
+            const fileInput = document.getElementById('matrixFileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showError('Please select a file first!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    const processedData = createPivotTable(jsonData);
+                    
+                    const newWorkbook = XLSX.utils.book_new();
+                    const newSheet = XLSX.utils.json_to_sheet(processedData);
+
+                    const maxWidths = {};
+                    processedData.forEach(row => {
+                        Object.entries(row).forEach(([key, value]) => {
+                            const valueLength = String(value).length;
+                            maxWidths[key] = Math.max(maxWidths[key] ||
