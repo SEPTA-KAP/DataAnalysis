@@ -45,6 +45,7 @@
             padding: 30px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-width: 375px;
             max-width: 375px;
             margin: 30px auto;
             transition: background-color 0.3s, color 0.3s, opacity 0.3s;
@@ -128,10 +129,6 @@
     </div>
     <div class="container">
         <h1>KAP Data Cleaner</h1>
-        <p>This program processes raw ridership reports to further create martices below.
-            If you intend to create matrices, ensure you filter out unwanted product types and unwanted/
-extra dates included by Crystal Reports before uploading into a matrix generator.
-        </p>
 
         <div class="input-group">
             <label for="fileInput">Select Excel File:</label>
@@ -366,5 +363,15 @@ extra dates included by Crystal Reports before uploading into a matrix generator
             debug(`Status: ${message}`);
         }
     </script>
+
+<div class="container">
+    <h1>What does this program do?</h1>
+    <p>This program removes unnecessary rows and columns as well as calculates 
+        values that might be missing from the raw ridership report. This step must
+        be completed before moving on to create matrices.
+    </p>
+
+
+
 </body>
 </html>
