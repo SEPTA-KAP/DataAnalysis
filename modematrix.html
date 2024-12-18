@@ -7,23 +7,51 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
-            font-family: 'Meriweather', serif;
+            font-family: 'cambria', arial;
             background-color: #030331;
             margin: 0;
             padding: 0;
             display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* White bar at the top with links */
+        .header {
+            background-color: white;
+            padding: 10px 0;
+            display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+
+        .header a {
+            color: #030331;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 0 20px;
+            padding: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .header a:hover {
+            background-color: #294d5a;
+            border-radius: 8px;
+            color: white;
+        }
+
+
         .container {
             text-align: center;
-            background: #ffffff;
+            background-color: #ffffff;
             padding: 30px;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 600px;
-            width: 90%;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 375px;
+            margin: 30px auto;
+            transition: background-color 0.3s, color 0.3s, opacity 0.3s;
         }
         h1 {
             color: #030331;
@@ -49,7 +77,7 @@
             font-size: 16px;
         }
         button:hover {
-            background-color: #0056b3;
+            background-color: #294d5a;
         }
         .instructions {
             text-align: left;
@@ -60,6 +88,15 @@
     </style>
 </head>
 <body>
+    <!-- White bar with links -->
+    <div class="header">
+        <a href="DataCleaner.html">Data Cleaner</a>
+        <a href="modematrix.html">Mode Matrix Generator</a>
+        <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
+        <a href="weekdaymatrix.html">Weekday Mode Matrix</a>
+    </div>
+
+    <!--Main Content container-->
     <div class="container">
         <h1>Mode Matrix Generator</h1>
         <div class="instructions">
@@ -207,6 +244,16 @@
             
             reader.readAsArrayBuffer(file);
         }
-    </script>
+    </script>        
+    </div>
+
+    <div class="container">
+        <h1>What is a mode matrix?</h1>
+        <p> This mode matrix breaks down every unique Media Row ID that rode SEPTA and
+            counts how many times they rode on transit, rail, or CCT.
+
+        </p>
+    </div>
 </body>
+
 </html>
