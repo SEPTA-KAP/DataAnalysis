@@ -7,25 +7,50 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
-            font-family: 'Meriweather', serif;
+            font-family: 'cambria', arial;
             background-color: #030331;
             margin: 0;
-            padding: 10;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+       /* White bar at the top with links */
+       .header {
+            background-color: white;
+            padding: 10px 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            max-width: 500px;
-            margin: 0 auto;
-            padding: 20px;
-            line-height: 1.6;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        .container {
-            background-color: #ffffff;
-            padding: 48px;
+
+        .header a {
+            color: #030331;
+            text-decoration: none;
+            font-weight: bold;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow-y: auto;
+            margin: 0 20px;
+            padding: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .header a:hover {
+            background-color: #294d5a;
+            border-radius: 8px;
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 375px;
+            margin: 30px auto;
+            transition: background-color 0.3s, color 0.3s, opacity 0.3s;
         }
         .input-group {
             margin-bottom: 15px;
@@ -51,7 +76,7 @@
             cursor: pointer;
         }
         button:hover {
-            background-color: #356083;
+            background-color: #294d5a;
         }
         #preview {
             margin-top: 20px;
@@ -96,6 +121,14 @@
     </style>
 </head>
 <body>
+    <!-- White bar with links -->
+    <div class="header">
+        <a href="DataCleaner.html">Data Cleaner</a>
+        <a href="modematrix.html">Mode Matrix Generator</a>
+        <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
+        <a href="weekdaymatrix.html">Weekday Mode Matrix</a>
+    </div>
+
     <div class="container">
         <h1>KAP Data Cleaner</h1>
         <p>This program processes raw ridership reports to further create martices below.
