@@ -3,27 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KAP Data Processing Tools</title>
+    <title>Crystal Ridership Report Cleaner</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Meriweather', serif;
             background-color: #030331;
             margin: 0;
-            padding: 20px;
-            min-height: 100vh;
+            padding: 10;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
+            min-height: 100vh;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
         }
         .container {
             background-color: #ffffff;
             padding: 48px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin: 20px 0;
-            width: 90%;
-            max-width: 800px;
             overflow-y: auto;
         }
         .input-group {
@@ -62,7 +63,7 @@
             margin-top: 10px;
         }
         th, td {
-            border: 1px solid #ddd;
+            border: 1px solid #ffffff;
             padding: 8px;
             text-align: left;
         }
@@ -92,62 +93,42 @@
             white-space: pre-wrap;
             font-family: monospace;
         }
-        .instructions {
-            text-align: left;
-            margin: 20px 0;
-            font-size: 14px;
-            color: #030331;
-        }
     </style>
 </head>
 <body>
-    <!-- Data Cleaner Container -->
     <div class="container">
         <h1>KAP Data Cleaner</h1>
-        <p>This program processes raw ridership reports to further create matrices below.
+        <p>This program processes raw ridership reports to further create martices below.
             If you intend to create matrices, ensure you filter out unwanted product types and unwanted/extra dates included by Crystal Reports before uploading into a matrix generator.
         </p>
         
         <div class="input-group">
-            <label for="cleanerFileInput">Select Excel File:</label>
-            <input type="file" id="cleanerFileInput" accept=".xlsx,.xls">
+            <label for="fileInput">Select Excel File:</label>
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
         </div>
         
         <div class="input-group">
-            <label for="cleanerSheetSelect">Select Sheet:</label>
-            <select id="cleanerSheetSelect"></select>
+            <label for="sheetSelect">Select Sheet:</label>
+            <select id="sheetSelect"></select>
         </div>
         
-        <button onclick="processCleanerFile()">Process File</button>
+        <button onclick="processFile()">Process File</button>
         
-        <div id="cleanerStatus" class="status"></div>
-        <div id="cleanerDebugOutput"></div>
-        <div id="cleanerPreview"></div>
-    </div>
-
-    <!-- Mode Matrix Generator Container -->
-    <div class="container">
-        <h1>Mode Matrix Generator</h1>
-        <div class="instructions">
-            <p>This tool takes cleaned ridership data and breaks down transit, rail, and CCT trips by unique Media Row ID.
-                Ensure your data is cleaned before uploading. If you're not sure, check for "-Cleaned data" at the end of your file name.</p>
-        </div>
-        <div class="error" id="matrixErrorMessage"></div>
-        <input type="file" id="matrixFileInput" accept=".xlsx,.xls" required>
-        <button onclick="processMatrixFile()">Generate Matrix</button>
+        <div id="status" class="status"></div>
+        <div id="debugOutput"></div>
+        <div id="preview"></div>
     </div>
 
     <script>
-        // Data Cleaner Script
-        let cleanerWorkbook = null;
+        let workbook = null;
 
         function debug(message) {
             console.log(message);
-            const debugOutput = document.getElementById('cleanerDebugOutput');
+            const debugOutput = document.getElementById('debugOutput');
             debugOutput.textContent += message + '\n';
         }
 
-        document.getElementById('cleanerFileInput').addEventListener('change', function(e) {
+        document.getElementById('fileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             debug(`File selected: ${file.name}`);
             
@@ -156,12 +137,12 @@
             reader.onload = function(e) {
                 try {
                     debug('Reading file...');
-                    cleanerWorkbook = XLSX.read(e.target.result, { type: 'array' });
-                    debug(`File read successfully. Sheets found: ${cleanerWorkbook.SheetNames.join(', ')}`);
+                    workbook = XLSX.read(e.target.result, { type: 'array' });
+                    debug(`File read successfully. Sheets found: ${workbook.SheetNames.join(', ')}`);
                     updateSheetList();
                 } catch (error) {
                     debug(`Error reading file: ${error.message}`);
-                    showCleanerStatus('Error reading file: ' + error.message, 'error');
+                    showStatus('Error reading file: ' + error.message, 'error');
                 }
             };
             
@@ -169,10 +150,10 @@
         });
 
         function updateSheetList() {
-            const sheetSelect = document.getElementById('cleanerSheetSelect');
+            const sheetSelect = document.getElementById('sheetSelect');
             sheetSelect.innerHTML = '';
             
-            cleanerWorkbook.SheetNames.forEach(sheetName => {
+            workbook.SheetNames.forEach(sheetName => {
                 const option = document.createElement('option');
                 option.value = sheetName;
                 option.textContent = sheetName;
@@ -181,28 +162,31 @@
             debug('Sheet list updated');
         }
 
-        function processCleanerFile() {
+        function processFile() {
             debug('Starting file processing...');
-            document.getElementById('cleanerDebugOutput').textContent = '';
+            document.getElementById('debugOutput').textContent = '';
             
             try {
-                if (!cleanerWorkbook) {
+                if (!workbook) {
                     throw new Error('Please select a file first.');
                 }
 
-                const sheetName = document.getElementById('cleanerSheetSelect').value;
+                const sheetName = document.getElementById('sheetSelect').value;
                 debug(`Processing sheet: ${sheetName}`);
                 
-                const worksheet = cleanerWorkbook.Sheets[sheetName];
+                // Read the worksheet with specific options
+                const worksheet = workbook.Sheets[sheetName];
                 let df = XLSX.utils.sheet_to_json(worksheet, { 
                     header: 1,
                     raw: false,
-                    range: 5
+                    range: 5  // Start reading from row 6 (index 5)
                 });
                 
+                // Get headers from the first row (now row 6 from the original sheet)
                 const headers = df[0].map(h => h ? String(h).trim() : '');
                 debug(`Headers found: ${headers.join(', ')}`);
                 
+                // Remove the header row and create array of objects
                 df = df.slice(1).map(row => {
                     const obj = {};
                     headers.forEach((header, i) => {
@@ -213,39 +197,48 @@
                     return obj;
                 });
 
+                // Remove empty rows
                 df = df.filter(row => Object.keys(row).length > 0);
                 debug(`After removing empty rows: ${df.length} rows`);
 
+                // Remove last rows based on Count Ridership
                 const hasCountRidership = headers.includes('Count Ridership');
                 df = hasCountRidership ? df.slice(0, -1) : df.slice(0, -6);
 
+                // Filter out declined status
                 const beforeFilter = df.length;
                 df = df.filter(row => !['Declined', 'Orphan Declined'].includes(row['Status']));
                 debug(`Filtered out ${beforeFilter - df.length} declined status rows`);
 
+                // Delete Status column
                 df = df.map(row => {
                     const { Status, ...rest } = row;
                     return rest;
                 });
 
+                // Replace Mode values
                 df = df.map(row => ({
                     ...row,
                     Mode: row.Mode === 'Commuter Rail' ? 'Rail' : 
                           (row.Mode === 'CCT' || row.Mode === 'Paratransit') ? 'CCT' : 'Transit'
                 }));
 
+                // Format Entry Date
                 df = df.map(row => ({
                     ...row,
                     'Entry Date': row['Entry Date'] ? new Date(row['Entry Date']).toLocaleDateString() : ''
                 }));
 
+                // Handle Count Ridership logic
                 if (hasCountRidership) {
+                    // If Count Ridership exists, remove Transaction Type
                     df = df.map(row => {
                         const { 'Transaction Type': _, ...rest } = row;
                         return rest;
                     });
                     debug('Removed Transaction Type column as Count Ridership exists');
                 } else {
+                    // Create Count Ridership from Transaction Type
                     df = df.map(row => {
                         let countRidership;
                         if (row['Transaction Type'] === 'R') {
@@ -265,6 +258,7 @@
                     debug('Created Count Ridership column from Transaction Type');
                 }
 
+                // Keep only required columns
                 const requiredColumns = ['Entry Date', 'Mode', 'Media Row ID', 'Product Type', 'Count Ridership'];
                 df = df.map(row => {
                     const newRow = {};
@@ -280,28 +274,32 @@
 
                 debug(`Final columns: ${Object.keys(df[0] || {}).join(', ')}`);
 
+                // Create new workbook and save
+                debug('Creating new workbook...');
                 const newWorkbook = XLSX.utils.book_new();
                 const newWorksheet = XLSX.utils.json_to_sheet(df);
                 XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, sheetName);
 
-                const fileName = document.getElementById('cleanerFileInput').files[0].name;
+                // Save file
+                const fileName = document.getElementById('fileInput').files[0].name;
                 const newFileName = fileName.replace(/\.[^/.]+$/, '') + ' - Cleaned Data.xlsx';
                 debug(`Saving to file: ${newFileName}`);
                 XLSX.writeFile(newWorkbook, newFileName);
 
+                // Show preview
                 showPreview(df);
-                showCleanerStatus('File processed successfully! Download should begin automatically.', 'success');
+                showStatus('File processed successfully! Download should begin automatically.', 'success');
                 debug('Processing complete');
 
             } catch (error) {
                 debug(`Error during processing: ${error.message}`);
-                showCleanerStatus(`Error processing file: ${error.message}`, 'error');
+                showStatus(`Error processing file: ${error.message}`, 'error');
             }
         }
 
         function showPreview(data) {
             try {
-                const preview = document.getElementById('cleanerPreview');
+                const preview = document.getElementById('preview');
                 if (!data || data.length === 0) {
                     preview.innerHTML = '<p>No data to display</p>';
                     return;
@@ -330,21 +328,99 @@
             }
         }
 
-        function showCleanerStatus(message, type) {
-            const status = document.getElementById('cleanerStatus');
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
             status.textContent = message;
             status.className = 'status ' + type;
             debug(`Status: ${message}`);
         }
+    </script>
+</body>
+</html>
 
-        // Mode Matrix Generator Script
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mode Matrix Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Meriweather', serif;
+            background-color: #030331;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            text-align: center;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 90%;
+        }
+        h1 {
+            color: #030331;
+            margin-bottom: 20px;
+        }
+        .error {
+            color: #dc3545;
+            margin: 10px 0;
+            display: none;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+            width: 100%;
+            max-width: 300px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #030331;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .instructions {
+            text-align: left;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #030331;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mode Matrix Generator</h1>
+        <div class="instructions">
+            <p>This tool takes cleaned ridership data and breaks down transit, rail, and CCT trips by unique Media Row ID.
+                Ensure your data is cleaned before uploading. If you're not sure, check for "-Cleaned data" at the end of your file name.</p>
+            
+        </div>
+        <div class="error" id="errorMessage"></div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" required>
+        <button onclick="processFile()">Generate Matrix</button>
+    </div>
+
+    <script>
         function showError(message) {
-            const errorDiv = document.getElementById('matrixErrorMessage');
+            const errorDiv = document.getElementById('errorMessage');
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
         }
 
         function createPivotTable(data) {
+            // Check required columns
             const requiredColumns = ['Mode', 'Media Row ID', 'Count Ridership'];
             const headers = Object.keys(data[0]);
             
@@ -352,9 +428,11 @@
                 throw new Error('Required columns missing. Please ensure your file has: Mode, Media Row ID, and Count Ridership columns.');
             }
 
+            // Create pivot table structure
             const pivot = {};
             const modes = new Set();
 
+            // First pass: collect all modes and create basic structure
             data.forEach(row => {
                 const mediaRowId = row['Media Row ID'];
                 const mode = row['Mode'];
@@ -373,21 +451,25 @@
                 pivot[mediaRowId][mode] += count;
             });
 
+            // Convert to array format and add totals
             const modesArray = Array.from(modes);
             const resultArray = Object.entries(pivot).map(([mediaRowId, modeData]) => {
                 const row = {
                     'Media Row ID': mediaRowId
                 };
 
+                // Fill in all modes (including zeros for missing data)
                 modesArray.forEach(mode => {
                     row[mode] = modeData[mode] || 0;
                 });
 
+                // Calculate total (sum of Transit and Rail if they exist)
                 row['Total'] = (row['Transit'] || 0) + (row['Rail'] || 0);
 
                 return row;
             });
 
+            // Add grand total row
             const grandTotal = {
                 'Media Row ID': 'Grand Total'
             };
@@ -403,8 +485,8 @@
             return resultArray;
         }
 
-        function processMatrixFile() {
-            const fileInput = document.getElementById('matrixFileInput');
+        function processFile() {
+            const fileInput = document.getElementById('fileInput');
             const file = fileInput.files[0];
             
             if (!file) {
@@ -418,9 +500,53 @@
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     
+                    // Get first sheet
                     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    // Convert to JSON
                     const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    // Create pivot table
                     const processedData = createPivotTable(jsonData);
                     
+                    // Create new workbook
                     const newWorkbook = XLSX.utils.book_new();
                     const newSheet = XLSX.utils.json_to_sheet(processedData);
+
+                    // Auto-size columns
+                    const maxWidths = {};
+                    processedData.forEach(row => {
+                        Object.entries(row).forEach(([key, value]) => {
+                            const valueLength = String(value).length;
+                            maxWidths[key] = Math.max(maxWidths[key] || 0, valueLength, key.length);
+                        });
+                    });
+
+                    // Apply column widths
+                    const ws_cols = Object.entries(maxWidths).map(([key, width]) => ({
+                        wch: width + 2
+                    }));
+                    newSheet['!cols'] = ws_cols;
+                    
+                    XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Mode Matrix');
+                    
+                    // Generate filename based on original filename
+                    const baseName = file.name.replace(/\.[^/.]+$/, "");
+                    const newFileName = `${baseName} - Mode Matrix.xlsx`;
+                    
+                    // Download file
+                    XLSX.writeFile(newWorkbook, newFileName);
+                } catch (error) {
+                    showError('Error processing file: ' + error.message);
+                }
+            };
+            
+            reader.onerror = function(error) {
+                showError('Error reading file: ' + error.message);
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+    </script>
+</body>
+</html>
