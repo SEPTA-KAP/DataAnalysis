@@ -17,6 +17,15 @@
             position: relative;
         }
 
+        /* Snow effect */
+        .snowflake {
+            position: fixed;
+            background-color: white;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
         /* Train animations */
         .train {
             position: fixed;
@@ -80,7 +89,7 @@
             line-height: 1.6;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             position: relative;
-            z-index: 1;
+            z-index: 2;
         }
 
         .header a {
@@ -176,5 +185,48 @@
         <p>This program also does not filter based on product type: if the user only wants data from the Key Advantage All Access Pass, he or she must filter out all other product 
             types and remove those rows manually.</p>
     </div>
+
+    <script>
+        function createSnowflake() {
+            const snowflake = document.createElement('div');
+            snowflake.classList.add('snowflake');
+            
+            // Random size between 3px and 7px
+            const size = Math.random() * 4 + 3;
+            snowflake.style.width = `${size}px`;
+            snowflake.style.height = `${size}px`;
+            
+            // Start position
+            snowflake.style.left = `${Math.random() * 100}vw`;
+            snowflake.style.top = '0';
+            
+            // Add some transparency
+            snowflake.style.opacity = Math.random() * 0.5 + 0.5;
+            
+            document.body.appendChild(snowflake);
+            
+            // Animate falling
+            let position = 0;
+            const speed = 0.5 + Math.random() * 1; // Random speed between 0.5 and 1.5
+            const wobble = Math.random() * 2 - 1; // Random left/right movement
+            
+            function fall() {
+                position += speed;
+                snowflake.style.top = `${position}px`;
+                snowflake.style.transform = `translateX(${Math.sin(position * 0.05) * wobble * 10}px)`;
+                
+                if (position < window.innerHeight + 20) {
+                    requestAnimationFrame(fall);
+                } else {
+                    snowflake.remove();
+                }
+            }
+            
+            fall();
+        }
+
+        // Create new snowflakes periodically
+        setInterval(createSnowflake, 100);
+    </script>
 </body>
 </html>
