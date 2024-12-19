@@ -229,7 +229,8 @@
                     const newWorkbook = XLSX.utils.book_new();
                     XLSX.utils.book_append_sheet(newWorkbook, XLSX.utils.json_to_sheet(firstMatrix), "Month-Year Matrix");
                     XLSX.utils.book_append_sheet(newWorkbook, XLSX.utils.json_to_sheet(secondMatrix), "Mode Breakdown");
-                    XLSX.writeFile(newWorkbook, "Month-Year_Matrix.xlsx");
+                    const originalFileName = file.name.replace('.xlsx', '').replace('.xls', '');
+                    XLSX.writeFile(newWorkbook, `${originalFileName} - Month-Year Matrix.xlsx`);
 
                     status.textContent = "Matrix generated successfully!";
                     status.classList.add('success');
