@@ -218,7 +218,7 @@
                     // Process data
                     const processedData = json.map(row => ({
                         ...row,
-                        'Day Type': isWeekend(row['Entry Date']) ? 'Weekend' : 'Weekday',
+                        'Day Type': isWeekend(row['Entry Date']) ? 'Weekends' : 'Weekdays',
                         'Count Ridership': parseFloat(row['Count Ridership']) || 0
                     }));
 
