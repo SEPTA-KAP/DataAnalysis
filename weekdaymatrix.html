@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekday/Weekend Mode Matrix Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'cambria', arial;
+            background-color: #030331;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .header {
+            background-color: white;
+            padding: 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1.6;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .header a {
+            color: #030331;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 0 20px;
+            padding: 10px;
+            transition: background-color 0.3s;
+        }
+        .header a:hover {
+            background-color: #294d5a;
+            border-radius: 8px;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            background-color: #ffffff;
+            color: #030331;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-width: 375px;
+            max-width: 375px;
+            margin: 30px auto;
+            transition: background-color 0.3s, color 0.3s, opacity 0.3s;
+        }
+        .container:hover {
+            color: #294d5a;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #030331;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #030331;
+            color: rgb(255, 255, 255);
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #294d5a;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #030331;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="index.html">Home</a>
+        <a href="DataCleaner.html">Data Cleaner</a>
+        <a href="modematrix.html">Mode Matrix Generator</a>
+        <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
+        <a href="weekdaymatrix.html">Weekday Mode Matrix</a>
+    </div>
+    <div class="container">
+        <h1>Weekday/Weekend Matrix</h1>
+
+        <div class="input-group">
+            <label for="fileInput">Select Excel File:</label>
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+        </div>
+
+        <div class="input-group">
+            <label for="sheetSelect">Select Sheet:</label>
+            <select id="sheetSelect"></select>
+        </div>
+
+        <button onclick="generateMatrix()">Generate Matrix</button>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const sheetSelect = document.getElementById('sheetSelect');
+                    sheetSelect.innerHTML = '';
+                    workbook.SheetNames.forEach(name => {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        option.textContent = name;
+                        sheetSelect.appendChild(option);
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+
+        function isWeekend(dateStr) {
+            const date = new Date(dateStr);
+            const day = date.getDay();
+            return day === 0 || day === 6; // 0 is Sunday, 6 is Saturday
+        }
+
+        function createMatrixWithTotals(data, getRowKey, getColKey, getValue) {
+            const rowKeys = [...new Set(data.map(getRowKey))].sort();
+            const colKeys = [...new Set(data.map(getColKey))].sort();
+
+            const valueMap = new Map();
+            data.forEach(row => {
+                const key = `${getRowKey(row)}|${getColKey(row)}`;
+                valueMap.set(key, (valueMap.get(key) || 0) + getValue(row));
+            });
+
+            // Create matrix with row totals
+            const matrix = rowKeys.map(rowKey => {
+                const row = {
+                    'Media Row ID': rowKey
+                };
+                let rowTotal = 0;
+                colKeys.forEach(colKey => {
+                    const value = valueMap.get(`${rowKey}|${colKey}`) || 0;
+                    row[colKey] = value;
+                    rowTotal += value;
+                });
+                row['Total'] = rowTotal;
+                return row;
+            });
+
+            // Add grand total row
+            const grandTotalRow = {
+                'Media Row ID': 'Grand Total'
+            };
+            colKeys.forEach(colKey => {
+                grandTotalRow[colKey] = matrix.reduce((sum, row) => sum + (row[colKey] || 0), 0);
+            });
+            grandTotalRow['Total'] = matrix.reduce((sum, row) => sum + row['Total'], 0);
+
+            matrix.push(grandTotalRow);
+            return matrix;
+        }
+
+        async function generateMatrix() {
+            const fileInput = document.getElementById("fileInput");
+            const sheetSelect = document.getElementById("sheetSelect");
+            const status = document.getElementById("status");
+            status.className = 'status';
+
+            if (!fileInput.files.length) {
+                status.textContent = "Please upload an Excel file.";
+                status.classList.add('error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async (event) => {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: "array" });
+                    const sheetName = sheetSelect.value || workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(sheet, { raw: false });
+
+                    // Ensure required columns exist
+                    const requiredColumns = ['Entry Date', 'Media Row ID', 'Mode', 'Count Ridership'];
+                    const missingColumns = requiredColumns.filter(col => !(col in json[0]));
+                    if (missingColumns.length > 0) {
+                        throw new Error(`Missing columns: ${missingColumns.join(", ")}`);
+                    }
+
+                    // Process data
+                    const processedData = json.map(row => ({
+                        ...row,
+                        'Day Type': isWeekend(row['Entry Date']) ? 'Weekend' : 'Weekday',
+                        'Count Ridership': parseFloat(row['Count Ridership']) || 0
+                    }));
+
+                    // Create matrices
+                    const firstMatrix = createMatrixWithTotals(
+                        processedData,
+                        row => row['Media Row ID'],
+                        row => row['Day Type'],
+                        row => row['Count Ridership']
+                    );
+
+                    const secondMatrix = createMatrixWithTotals(
+                        processedData,
+                        row => row['Media Row ID'],
+                        row => `${row['Day Type']} (${row['Mode']})`,
+                        row => row['Count Ridership']
+                    );
+
+                    // Create and save workbook
+                    const newWorkbook = XLSX.utils.book_new();
+                    const originalFileName = file.name.replace('.xlsx', '').replace('.xls', '');
+
+                    XLSX.utils.book_append_sheet(newWorkbook, XLSX.utils.json_to_sheet(firstMatrix), "Day Type Matrix");
+                    XLSX.utils.book_append_sheet(newWorkbook, XLSX.utils.json_to_sheet(secondMatrix), "Mode Breakdown");
+                    XLSX.writeFile(newWorkbook, `${originalFileName} - Weekday Matrix.xlsx`);
+
+                    status.textContent = "Matrix generated successfully!";
+                    status.classList.add('success');
+
+                } catch (error) {
+                    status.textContent = `Error: ${error.message}`;
+                    status.classList.add('error');
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+    </script>
+</body>
+</html>
