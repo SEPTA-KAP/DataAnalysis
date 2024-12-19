@@ -15,8 +15,7 @@
             flex-direction: column;
             min-height: 100vh;
         }
-       /* White bar at the top with links */
-       .header {
+        .header {
             background-color: white;
             padding: 10px 0;
             display: flex;
@@ -51,11 +50,9 @@
             margin: 30px auto;
             transition: background-color 0.3s, color 0.3s, opacity 0.3s;
         }
-
         .container:hover {
             color: #294d5a;
         }
-
         .input-group {
             margin-bottom: 15px;
         }
@@ -125,7 +122,6 @@
     </style>
 </head>
 <body>
-    <!-- White bar with links -->
     <div class="header">
         <a href="index.html">Home</a>
         <a href="DataCleaner.html">Data Cleaner</a>
@@ -146,7 +142,7 @@
             <select id="sheetSelect"></select>
         </div>
 
-        <button onclick="processFile()">Generate Matrix</button>
+        <button onclick="generateMatrix()">Generate Matrix</button>
 
         <div id="status" class="status"></div>
         <div id="debugOutput"></div>
@@ -154,12 +150,36 @@
     </div>
 
     <script>
+        // Update sheet selection when file is loaded
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const sheetSelect = document.getElementById('sheetSelect');
+                    sheetSelect.innerHTML = '';
+                    workbook.SheetNames.forEach(name => {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        option.textContent = name;
+                        sheetSelect.appendChild(option);
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+
         async function generateMatrix() {
             const fileInput = document.getElementById("fileInput");
+            const sheetSelect = document.getElementById("sheetSelect");
             const status = document.getElementById("status");
+            status.className = 'status';
 
             if (!fileInput.files.length) {
                 status.textContent = "Please upload an Excel file.";
+                status.classList.add('error');
                 return;
             }
 
@@ -167,76 +187,70 @@
             const reader = new FileReader();
 
             reader.onload = async (event) => {
-                const data = new Uint8Array(event.target.result);
-                const workbook = XLSX.read(data, { type: "array" });
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: "array" });
+                    const sheetName = sheetSelect.value || workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(sheet, { raw: false });
 
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json(sheet, { raw: false });
+                    // Ensure required columns exist
+                    const requiredColumns = ['Entry Date', 'Media Row ID', 'Mode', 'Count Ridership'];
+                    const missingColumns = requiredColumns.filter(col => !(col in json[0]));
+                    if (missingColumns.length > 0) {
+                        throw new Error(`Missing columns: ${missingColumns.join(", ")}`);
+                    }
 
-                // Ensure required columns exist
-                const requiredColumns = ['Entry Date', 'Media Row ID', 'Mode', 'Count Ridership'];
-                const missingColumns = requiredColumns.filter(col => !(col in json[0]));
-                if (missingColumns.length > 0) {
-                    status.textContent = `Missing columns: ${missingColumns.join(", ")}`;
-                    return;
+                    // Process data
+                    const processedData = json.map(row => ({
+                        ...row,
+                        'Month-Year': new Date(row['Entry Date']).toLocaleString("default", { month: "long", year: "numeric" }),
+                        'Count Ridership': parseFloat(row['Count Ridership']) || 0
+                    }));
+
+                    // Create matrices
+                    const firstMatrix = createMatrix(
+                        processedData,
+                        row => row['Media Row ID'],
+                        row => row['Month-Year'],
+                        row => row['Count Ridership']
+                    );
+
+                    const secondMatrix = createMatrix(
+                        processedData,
+                        row => row['Media Row ID'],
+                        row => `${row['Month-Year']} (${row['Mode']})`,
+                        row => row['Count Ridership']
+                    );
+
+                    // Create and save workbook
+                    const newWorkbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(newWorkbook, XLSX.utils.json_to_sheet(firstMatrix), "Month-Year Matrix");
+                    XLSX.utils.book_append_sheet(newWorkbook, XLSX.utils.json_to_sheet(secondMatrix), "Mode Breakdown");
+                    XLSX.writeFile(newWorkbook, "Month-Year_Matrix.xlsx");
+
+                    status.textContent = "Matrix generated successfully!";
+                    status.classList.add('success');
+
+                } catch (error) {
+                    status.textContent = `Error: ${error.message}`;
+                    status.classList.add('error');
                 }
-
-                // Process data
-                const processedData = json.map(row => ({
-                    ...row,
-                    'Month-Year': new Date(row['Entry Date']).toLocaleString("default", { month: "long", year: "numeric" }),
-                    'Count Ridership': parseFloat(row['Count Ridership']) || 0
-                }));
-
-                // Create the first matrix (Media Row ID vs Month-Year)
-                const firstMatrix = createMatrix(
-                    processedData,
-                    row => row['Media Row ID'],
-                    row => row['Month-Year'],
-                    row => row['Count Ridership']
-                );
-
-                // Create the second matrix (Media Row ID vs Month-Year-Mode)
-                const secondMatrix = createMatrix(
-                    processedData,
-                    row => row['Media Row ID'],
-                    row => `${row['Month-Year']} (${row['Mode']})`,
-                    row => row['Count Ridership']
-                );
-
-                // Create new workbook
-                const newWorkbook = XLSX.utils.book_new();
-
-                // Add first sheet
-                const sheet1 = XLSX.utils.json_to_sheet(firstMatrix);
-                XLSX.utils.book_append_sheet(newWorkbook, sheet1, "Month-Year Matrix");
-
-                // Add second sheet
-                const sheet2 = XLSX.utils.json_to_sheet(secondMatrix);
-                XLSX.utils.book_append_sheet(newWorkbook, sheet2, "Mode Breakdown");
-
-                // Save the workbook
-                XLSX.writeFile(newWorkbook, "Month-Year_Matrix.xlsx");
-                status.textContent = "Matrix generated successfully!";
             };
 
             reader.readAsArrayBuffer(file);
         }
 
         function createMatrix(data, getRowKey, getColKey, getValue) {
-            // Get unique row and column keys
             const rowKeys = [...new Set(data.map(getRowKey))].sort();
             const colKeys = [...new Set(data.map(getColKey))].sort();
 
-            // Create a mapping for quick value lookup
             const valueMap = new Map();
             data.forEach(row => {
                 const key = `${getRowKey(row)}|${getColKey(row)}`;
                 valueMap.set(key, (valueMap.get(key) || 0) + getValue(row));
             });
 
-            // Create matrix rows
             return rowKeys.map(rowKey => {
                 const row = {
                     'Media Row ID': rowKey
