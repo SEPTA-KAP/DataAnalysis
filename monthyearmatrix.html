@@ -3,229 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crystal Ridership Report Cleaner</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <style>
-        body {
-            font-family: 'cambria', arial;
-            background-color: #030331;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-       /* White bar at the top with links */
-       .header {
-            background-color: white;
-            padding: 10px 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            line-height: 1.6;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .header a {
-            color: #030331;
-            text-decoration: none;
-            font-weight: bold;
-            border-radius: 8px;
-            margin: 0 20px;
-            padding: 10px;
-            transition: background-color 0.3s;
-        }
-        .header a:hover {
-            background-color: #294d5a;
-            border-radius: 8px;
-            color: white;
-        }
-        .container {
-            text-align: center;
-            background-color: #ffffff;
-            color: #030331;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            min-width: 375px;
-            max-width: 375px;
-            margin: 30px auto;
-            transition: background-color 0.3s, color 0.3s, opacity 0.3s;
-        }
-
-        .container:hover {
-            color: #294d5a;
-        }
-
-        .input-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input, select {
-            width: 100%;
-            padding: 8px;
-            margin-bottom: 10px;
-            border: 1px solid #030331;
-            border-radius: 4px;
-        }
-        button {
-            background-color: #030331;
-            color: rgb(255, 255, 255);
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #294d5a;
-        }
-        #preview {
-            margin-top: 20px;
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            border: 1px solid #ffffff;
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #030331;
-            color: white;
-        }
-        .status {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        .success {
-            background-color: #dff0d8;
-            color: #030331;
-        }
-        .error {
-            background-color: #f2dede;
-            color: #a94442;
-        }
-        #debugOutput {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            white-space: pre-wrap;
-            font-family: monospace;
-        }
-    </style>
+    <title>Month-Year Matrix Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
-    <!-- White bar with links -->
-    <div class="header">
-        <a href="index.html">Home</a>
-        <a href="DataCleaner.html">Data Cleaner</a>
-        <a href="modematrix.html">Mode Matrix Generator</a>
-        <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
-        <a href="weekdaymatrix.html">Weekday Mode Matrix</a>
-    </div>
-    <div class="container">
-        <h1>Month-Year Matrix</h1>
-
-        <div class="input-group">
-            <label for="fileInput">Select Excel File:</label>
-            <input type="file" id="fileInput" accept=".xlsx,.xls">
-        </div>
-
-        <div class="input-group">
-            <label for="sheetSelect">Select Sheet:</label>
-            <select id="sheetSelect"></select>
-        </div>
-
-        <button onclick="processFile()">Process File</button>
-
-        <div id="status" class="status"></div>
-        <div id="debugOutput"></div>
-        <div id="preview"></div>
-    </div>
-
+    <h1>Month-Year Matrix Generator</h1>
+    <form id="uploadForm">
+        <label for="fileInput">Upload Excel File:</label>
+        <input type="file" id="fileInput" accept=".xlsx, .xls">
+        <button type="button" onclick="generateMatrix()">Generate Matrix</button>
+    </form>
+    <p id="status"></p>
     <script>
-        document.getElementById('generateMatrix').addEventListener('click', () => {
-            const fileInput = document.getElementById('fileInput');
+        async function generateMatrix() {
+            const fileInput = document.getElementById("fileInput");
+            const status = document.getElementById("status");
+
             if (!fileInput.files.length) {
-                alert('Please select an Excel file first.');
+                status.textContent = "Please upload an Excel file.";
                 return;
             }
 
             const file = fileInput.files[0];
             const reader = new FileReader();
 
-            reader.onload = (e) => {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
+            reader.onload = async (event) => {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: "array" });
 
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(sheet, { raw: false });
 
-                const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-                // Ensure the required columns exist
-                const headers = jsonData[0];
+                // Ensure required columns exist
                 const requiredColumns = ['Entry Date', 'Media Row ID', 'Mode', 'Count Ridership'];
-                if (!requiredColumns.every(col => headers.includes(col))) {
-                    alert('The required columns are missing from the file.');
+                const missingColumns = requiredColumns.filter(col => !(col in json[0]));
+                if (missingColumns.length > 0) {
+                    status.textContent = `Missing columns: ${missingColumns.join(", ")}`;
                     return;
                 }
 
-                // Process the data
-                const entryDateIndex = headers.indexOf('Entry Date');
-                const mediaRowIDIndex = headers.indexOf('Media Row ID');
-                const modeIndex = headers.indexOf('Mode');
-                const countRidershipIndex = headers.indexOf('Count Ridership');
-
-                const data = jsonData.slice(1).map(row => ({
-                    entryDate: new Date(row[entryDateIndex]),
-                    mediaRowID: row[mediaRowIDIndex],
-                    mode: row[modeIndex],
-                    countRidership: parseFloat(row[countRidershipIndex]) || 0,
-                }));
-
-                const matrix = {};
-
-                data.forEach(row => {
-                    const monthYear = row.entryDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-                    if (!matrix[row.mediaRowID]) matrix[row.mediaRowID] = {};
-                    if (!matrix[row.mediaRowID][row.mode]) matrix[row.mediaRowID][row.mode] = {};
-                    matrix[row.mediaRowID][row.mode][monthYear] = (matrix[row.mediaRowID][row.mode][monthYear] || 0) + row.countRidership;
+                // Convert 'Entry Date' to 'Month-Year' and 'Count Ridership' to numeric
+                json.forEach(row => {
+                    row['Month-Year'] = new Date(row['Entry Date']).toLocaleString("default", { month: "long", year: "numeric" });
+                    row['Count Ridership'] = parseFloat(row['Count Ridership']) || 0;
                 });
 
-                const table = document.getElementById('matrixTable');
-                table.innerHTML = '';
+                // Create the matrices
+                const groupedByMonthYear = groupBy(json, 'Month-Year', 'Count Ridership');
+                const groupedByMode = groupBy(json, ['Media Row ID', 'Mode', 'Month-Year'], 'Count Ridership');
 
-                // Get unique months
-                const allMonths = Array.from(new Set(data.map(row => row.entryDate.toLocaleString('default', { month: 'long', year: 'numeric' })))).sort();
+                // Create workbook with two sheets
+                const newWorkbook = XLSX.utils.book_new();
 
-                // Build table header
-                const headerRow = document.createElement('tr');
-                headerRow.innerHTML = `<th>Media Row ID</th><th>Mode</th>${allMonths.map(month => `<th>${month}</th>`).join('')}`;
-                table.appendChild(headerRow);
+                // Sheet 1: Matrix without mode
+                const matrixWithoutMode = pivot(groupedByMonthYear, "Month-Year");
+                const sheet1 = XLSX.utils.json_to_sheet(matrixWithoutMode);
+                XLSX.utils.book_append_sheet(newWorkbook, sheet1, "Month-Year Matrix");
 
-                // Populate table rows
-                Object.keys(matrix).forEach(mediaRowID => {
-                    Object.keys(matrix[mediaRowID]).forEach(mode => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `<td>${mediaRowID}</td><td>${mode}</td>${allMonths.map(month => `<td>${matrix[mediaRowID][mode][month] || 0}</td>`).join('')}`;
-                        table.appendChild(row);
-                    });
-                });
+                // Sheet 2: Matrix with mode
+                const matrixWithMode = pivot(groupedByMode, "Month-Year", ["Media Row ID", "Mode"]);
+                const sheet2 = XLSX.utils.json_to_sheet(matrixWithMode);
+                XLSX.utils.book_append_sheet(newWorkbook, sheet2, "Mode Breakdown");
+
+                // Save the workbook
+                XLSX.writeFile(newWorkbook, "Month-Year_Matrix.xlsx");
+                status.textContent = "Matrix generated successfully!";
             };
 
             reader.readAsArrayBuffer(file);
-        });
+        }
+
+        function groupBy(data, groupByKeys, valueKey) {
+            const grouped = {};
+
+            data.forEach(row => {
+                const key = Array.isArray(groupByKeys)
+                    ? groupByKeys.map(k => row[k]).join("|")
+                    : row[groupByKeys];
+                if (!grouped[key]) grouped[key] = 0;
+                grouped[key] += row[valueKey] || 0;
+            });
+
+            return Object.entries(grouped).map(([key, value]) => {
+                const keys = Array.isArray(groupByKeys) ? key.split("|") : [key];
+                const row = { [valueKey]: value };
+                groupByKeys.forEach((k, i) => row[k] = keys[i]);
+                return row;
+            });
+        }
+
+        function pivot(data, columnsKey, rowsKey = null) {
+            const rows = rowsKey ? [...new Set(data.map(d => rowsKey.map(k => d[k]).join("|")))] : [null];
+            const columns = [...new Set(data.map(d => d[columnsKey]))];
+            const pivotData = rows.map(rowKey => {
+                const row = rowsKey ? Object.fromEntries(rowsKey.map((k, i) => [k, rowKey.split("|")[i]])) : {};
+                columns.forEach(col => {
+                    row[col] = data.find(d => (
+                        (!rowsKey || rowsKey.every((k, i) => d[k] === rowKey.split("|")[i])) &&
+                        d[columnsKey] === col
+                    ))?.Count Ridership || 0;
+                });
+                return row;
+            });
+            return pivotData;
+        }
     </script>
 </body>
 </html>
