@@ -3,17 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Month-Year Matrix Generator</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <title>Month-year Mode Matrix Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'cambria', arial;
+            background-color: #030331;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+       /* White bar at the top with links */
+       .header {
+            background-color: white;
+            padding: 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1.6;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .header a {
+            color: #030331;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 0 20px;
+            padding: 10px;
+            transition: background-color 0.3s;
+        }
+        .header a:hover {
+            background-color: #294d5a;
+            border-radius: 8px;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            background-color: #ffffff;
+            color: #030331;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-width: 375px;
+            max-width: 375px;
+            margin: 30px auto;
+            transition: background-color 0.3s, color 0.3s, opacity 0.3s;
+        }
+
+        .container:hover {
+            color: #294d5a;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #030331;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #030331;
+            color: rgb(255, 255, 255);
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #294d5a;
+        }
+        #preview {
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ffffff;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #030331;
+            color: white;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #030331;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        #debugOutput {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+    </style>
 </head>
 <body>
-    <h1>Month-Year Matrix Generator</h1>
-    <form id="uploadForm">
-        <label for="fileInput">Upload Excel File:</label>
-        <input type="file" id="fileInput" accept=".xlsx, .xls">
-        <button type="button" onclick="generateMatrix()">Generate Matrix</button>
-    </form>
-    <p id="status"></p>
+    <!-- White bar with links -->
+    <div class="header">
+        <a href="index.html">Home</a>
+        <a href="DataCleaner.html">Data Cleaner</a>
+        <a href="modematrix.html">Mode Matrix Generator</a>
+        <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
+        <a href="weekdaymatrix.html">Weekday Mode Matrix</a>
+    </div>
+    <div class="container">
+        <h1>Month-Year Matrix</h1>
+
+        <div class="input-group">
+            <label for="fileInput">Select Excel File:</label>
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+        </div>
+
+        <div class="input-group">
+            <label for="sheetSelect">Select Sheet:</label>
+            <select id="sheetSelect"></select>
+        </div>
+
+        <button onclick="processFile()">Generate Matrix</button>
+
+        <div id="status" class="status"></div>
+        <div id="debugOutput"></div>
+        <div id="preview"></div>
+    </div>
+
     <script>
         async function generateMatrix() {
             const fileInput = document.getElementById("fileInput");
