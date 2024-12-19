@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- [Previous head and style sections remain exactly the same] -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Month-year Mode Matrix Generator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
+        /* [Previous styles remain exactly the same] */
         body {
             font-family: 'cambria', arial;
             background-color: #030331;
@@ -216,7 +218,7 @@
                         row => row['Count Ridership']
                     );
 
-                    const secondMatrix = createMatrix(
+                    const secondMatrix = createMatrixWithTotals(
                         processedData,
                         row => row['Media Row ID'],
                         row => `${row['Month-Year']} (${row['Mode']})`,
@@ -261,6 +263,44 @@
                 });
                 return row;
             });
+        }
+
+        function createMatrixWithTotals(data, getRowKey, getColKey, getValue) {
+            const rowKeys = [...new Set(data.map(getRowKey))].sort();
+            const colKeys = [...new Set(data.map(getColKey))].sort();
+
+            const valueMap = new Map();
+            data.forEach(row => {
+                const key = `${getRowKey(row)}|${getColKey(row)}`;
+                valueMap.set(key, (valueMap.get(key) || 0) + getValue(row));
+            });
+
+            // Create matrix with row totals
+            const matrix = rowKeys.map(rowKey => {
+                const row = {
+                    'Media Row ID': rowKey
+                };
+                let rowTotal = 0;
+                colKeys.forEach(colKey => {
+                    const value = valueMap.get(`${rowKey}|${colKey}`) || 0;
+                    row[colKey] = value;
+                    rowTotal += value;
+                });
+                row['Total'] = rowTotal;
+                return row;
+            });
+
+            // Add grand total row
+            const grandTotalRow = {
+                'Media Row ID': 'Grand Total'
+            };
+            colKeys.forEach(colKey => {
+                grandTotalRow[colKey] = matrix.reduce((sum, row) => sum + (row[colKey] || 0), 0);
+            });
+            grandTotalRow['Total'] = matrix.reduce((sum, row) => sum + row['Total'], 0);
+
+            matrix.push(grandTotalRow);
+            return matrix;
         }
     </script>
 </body>
