@@ -43,27 +43,38 @@
                     return;
                 }
 
-                // Convert 'Entry Date' to 'Month-Year' and 'Count Ridership' to numeric
-                json.forEach(row => {
-                    row['Month-Year'] = new Date(row['Entry Date']).toLocaleString("default", { month: "long", year: "numeric" });
-                    row['Count Ridership'] = parseFloat(row['Count Ridership']) || 0;
-                });
+                // Process data
+                const processedData = json.map(row => ({
+                    ...row,
+                    'Month-Year': new Date(row['Entry Date']).toLocaleString("default", { month: "long", year: "numeric" }),
+                    'Count Ridership': parseFloat(row['Count Ridership']) || 0
+                }));
 
-                // Create the matrices
-                const groupedByMonthYear = groupBy(json, 'Month-Year', 'Count Ridership');
-                const groupedByMode = groupBy(json, ['Media Row ID', 'Mode', 'Month-Year'], 'Count Ridership');
+                // Create the first matrix (Media Row ID vs Month-Year)
+                const firstMatrix = createMatrix(
+                    processedData,
+                    row => row['Media Row ID'],
+                    row => row['Month-Year'],
+                    row => row['Count Ridership']
+                );
 
-                // Create workbook with two sheets
+                // Create the second matrix (Media Row ID vs Month-Year-Mode)
+                const secondMatrix = createMatrix(
+                    processedData,
+                    row => row['Media Row ID'],
+                    row => `${row['Month-Year']} (${row['Mode']})`,
+                    row => row['Count Ridership']
+                );
+
+                // Create new workbook
                 const newWorkbook = XLSX.utils.book_new();
 
-                // Sheet 1: Matrix without mode
-                const matrixWithoutMode = pivot(groupedByMonthYear, "Month-Year");
-                const sheet1 = XLSX.utils.json_to_sheet(matrixWithoutMode);
+                // Add first sheet
+                const sheet1 = XLSX.utils.json_to_sheet(firstMatrix);
                 XLSX.utils.book_append_sheet(newWorkbook, sheet1, "Month-Year Matrix");
 
-                // Sheet 2: Matrix with mode
-                const matrixWithMode = pivot(groupedByMode, "Month-Year", ["Media Row ID", "Mode"]);
-                const sheet2 = XLSX.utils.json_to_sheet(matrixWithMode);
+                // Add second sheet
+                const sheet2 = XLSX.utils.json_to_sheet(secondMatrix);
                 XLSX.utils.book_append_sheet(newWorkbook, sheet2, "Mode Breakdown");
 
                 // Save the workbook
@@ -74,39 +85,29 @@
             reader.readAsArrayBuffer(file);
         }
 
-        function groupBy(data, groupByKeys, valueKey) {
-            const grouped = {};
+        function createMatrix(data, getRowKey, getColKey, getValue) {
+            // Get unique row and column keys
+            const rowKeys = [...new Set(data.map(getRowKey))].sort();
+            const colKeys = [...new Set(data.map(getColKey))].sort();
 
+            // Create a mapping for quick value lookup
+            const valueMap = new Map();
             data.forEach(row => {
-                const key = Array.isArray(groupByKeys)
-                    ? groupByKeys.map(k => row[k]).join("|")
-                    : row[groupByKeys];
-                if (!grouped[key]) grouped[key] = 0;
-                grouped[key] += row[valueKey] || 0;
+                const key = `${getRowKey(row)}|${getColKey(row)}`;
+                valueMap.set(key, (valueMap.get(key) || 0) + getValue(row));
             });
 
-            return Object.entries(grouped).map(([key, value]) => {
-                const keys = Array.isArray(groupByKeys) ? key.split("|") : [key];
-                const row = { [valueKey]: value };
-                groupByKeys.forEach((k, i) => row[k] = keys[i]);
-                return row;
-            });
-        }
-
-        function pivot(data, columnsKey, rowsKey = null) {
-            const rows = rowsKey ? [...new Set(data.map(d => rowsKey.map(k => d[k]).join("|")))] : [null];
-            const columns = [...new Set(data.map(d => d[columnsKey]))];
-            const pivotData = rows.map(rowKey => {
-                const row = rowsKey ? Object.fromEntries(rowsKey.map((k, i) => [k, rowKey.split("|")[i]])) : {};
-                columns.forEach(col => {
-                    row[col] = data.find(d => (
-                        (!rowsKey || rowsKey.every((k, i) => d[k] === rowKey.split("|")[i])) &&
-                        d[columnsKey] === col
-                    ))?.Count Ridership || 0;
+            // Create matrix rows
+            return rowKeys.map(rowKey => {
+                const row = {
+                    'Media Row ID': rowKey
+                };
+                colKeys.forEach(colKey => {
+                    const value = valueMap.get(`${rowKey}|${colKey}`) || 0;
+                    row[colKey] = value;
                 });
                 return row;
             });
-            return pivotData;
         }
     </script>
 </body>
