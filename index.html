@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Analysis Homepage</title>
     <style>
+        /* Previous styles remain the same until steam-related styles */
         body {
             background-color: #02021b;
             font-family: 'cambria', arial;
@@ -17,60 +18,40 @@
             position: relative;
         }
 
-        /* Train animations */
-        .train {
+        .train-container {
             position: fixed;
             z-index: -1;
-            opacity: 0;
+            pointer-events: none;
+        }
+
+        .train {
             width: 200px;
             height: auto;
+            position: relative;
         }
 
-        #trainLeft {
-            top: 66%;
-            animation: moveLeft 15s linear infinite;
+        .steam {
+            position: absolute;
+            width: 6px;  /* Reduced from 10px */
+            height: 6px; /* Reduced from 10px */
+            background: rgba(255, 255, 255, 0.3); /* More transparent */
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(1px); /* Added slight blur for softer appearance */
         }
 
-        #trainRight {
-            top: 32.75%;
-            animation: moveRight 15s linear infinite;
-        }
-
-        @keyframes moveLeft {
+        @keyframes steamFloat {
             0% {
-                transform: translateX(100vw);
-                opacity: 0;
-            }
-            10% {
-                opacity: 1;
-            }
-            90% {
-                opacity: 1;
+                transform: translate(0, 0) scale(1);
+                opacity: 0.3; /* Starting more transparent */
             }
             100% {
-                transform: translateX(-200px);
+                transform: translate(0, -20px) scale(1.5); /* Reduced scale */
                 opacity: 0;
             }
         }
 
-        @keyframes moveRight {
-            0% {
-                transform: translateX(-200px);
-                opacity: 0;
-            }
-            10% {
-                opacity: 1;
-            }
-            90% {
-                opacity: 1;
-            }
-            100% {
-                transform: translateX(100vw);
-                opacity: 0;
-            }
-        }
-
-        /* White bar at the top with links */
+        /* Rest of the styles remain the same */
         .header {
             background-color: white;
             padding: 10px 0;
@@ -99,7 +80,6 @@
             color: white;
         }
 
-        /* Main content container */
         .container {
             background-color: white;
             padding: 30px;
@@ -141,11 +121,7 @@
     </style>
 </head>
 <body>
-    <!-- Animated trains -->
-    <img src="SubwayLeft.png" alt="Train moving left" class="train" id="trainLeft">
-    <img src="SubwayRight.png" alt="Train moving right" class="train" id="trainRight">
-
-    <!-- White bar with links -->
+    <!-- Header and containers remain the same -->
     <div class="header">
         <a href="index.html">Home</a>
         <a href="DataCleaner.html">Data Cleaner</a>
@@ -155,7 +131,6 @@
         <a href="TWsavingsmatrix.html">Travel Wallet Savings Matrix</a>
     </div>
 
-    <!-- Main content container -->
     <div class="container">
         <h1>SEPTA Ridership Report Analysis Assistant</h1>
         <p>This digital assistant contains several programs to assist in data cleaning and analysis for the Key Advantage team. Ensure your raw ridership report is submitted through the data cleaner before creating matrices.</p>
@@ -177,5 +152,82 @@
         <p>This program also does not filter based on product type: if the user only wants data from the Key Advantage All Access Pass, he or she must filter out all other product 
             types and remove those rows manually.</p>
     </div>
+
+    <script>
+        function createTrain() {
+            const trainContainer = document.createElement('div');
+            const isLeftToRight = Math.random() < 0.5;
+            const verticalPosition = Math.random() * 80 + 10;
+            
+            trainContainer.className = 'train-container';
+            trainContainer.style.top = `${verticalPosition}%`;
+
+            const startX = isLeftToRight ? -200 : window.innerWidth;
+            const endX = isLeftToRight ? window.innerWidth : -200;
+            const duration = 15000;
+            const startTime = Date.now();
+
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                const currentX = startX + (endX - startX) * progress;
+                trainContainer.style.transform = `translateX(${currentX}px)`;
+                trainContainer.style.opacity = progress < 0.1 ? progress * 10 : 
+                                             progress > 0.9 ? (1 - progress) * 10 : 
+                                             1;
+
+                if (progress > 0.1 && progress < 0.9 && Math.random() < 0.3) { // Reduced frequency
+                    createSteam(trainContainer, isLeftToRight);
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    document.body.removeChild(trainContainer);
+                    const nextTrainDelay = 100;
+                    setTimeout(createTrain, nextTrainDelay);
+                }
+            }
+
+            const train = document.createElement('img');
+            train.className = 'train';
+            train.src = isLeftToRight ? 'SubwayRight.png' : 'SubwayLeft.png';
+            trainContainer.appendChild(train);
+            document.body.appendChild(trainContainer);
+
+            animate();
+        }
+
+        function createSteam(trainContainer, isLeftToRight) {
+            const steam = document.createElement('div');
+            steam.className = 'steam';
+            
+            // Adjusted positioning to be closer to the train
+            const steamX = isLeftToRight ? 5 : 185; // Moved closer to train
+            const steamY = Math.random() * 10 + 35; // Tighter vertical range
+            
+            steam.style.left = `${steamX}px`;
+            steam.style.top = `${steamY}%`;
+
+            // Smaller random size variation
+            const size = Math.random() * 3 + 4; // Reduced size range
+            steam.style.width = `${size}px`;
+            steam.style.height = `${size}px`;
+            
+            steam.style.animation = 'steamFloat 0.8s ease-out forwards'; // Slightly faster animation
+            
+            trainContainer.appendChild(steam);
+            
+            setTimeout(() => {
+                if (trainContainer.contains(steam)) {
+                    trainContainer.removeChild(steam);
+                }
+            }, 800);
+        }
+
+        // Start the first train
+        createTrain();
+    </script>
 </body>
 </html>
