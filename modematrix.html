@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mode Matrix Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'cambria', arial;
+            background-color: #02021b;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* White bar at the top with links */
+        .header {
+            background-color: white;
+            padding: 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1.6;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header a {
+            color: #02021b;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 0 20px;
+            padding: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .header a:hover {
+            background-color: #294d5a;
+            border-radius: 8px;
+            color: white;
+        }
+
+
+        .container {
+            text-align: center;
+            background-color: #ffffff;
+            color: #02021b;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 375px;
+            margin: 30px auto;
+            transition: background-color 0.3s, color 0.3s, opacity 0.3s;
+        }
+
+        h1 {
+            color: #02021b;
+            margin-bottom: 20px;
+        }
+
+        h1:hover {
+            color: #294d5a;
+        }
+        .error {
+            color: #dc3545;
+            margin: 10px 0;
+            display: none;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+            width: 100%;
+            max-width: 300px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #02021b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #294d5a;
+        }
+        .instructions {
+            text-align: left;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #02021b;
+        }
+    </style>
+</head>
+<body>
+    <!-- White bar with links -->
+    <div class="header">
+        <a href="index.html">Home</a>
+        <a href="DataCleaner.html">Data Cleaner</a>
+        <a href="modematrix.html">Mode Matrix Generator</a>
+        <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
+        <a href="weekdaymatrix.html">Weekday/Weekend Mode Matrix</a>
+        <a href="TWsavingsmatrix.html">Travel Wallet Savings Matrix</a>
+    </div>
+
+    <!--Main Content container-->
+    <div class="container">
+        <h1>Mode Matrix Generator</h1>
+        <div class="instructions">
+            <p>This tool takes cleaned ridership data and breaks down transit, rail, and CCT trips by unique Media Row ID.
+                Ensure your data is cleaned before uploading. If you're not sure, check for "-Cleaned data" at the end of your file name.</p>
+            
+        </div>
+        <div class="error" id="errorMessage"></div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" required>
+        <button onclick="processFile()">Generate Matrix</button>
+    </div>
+
+    <script>
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function createPivotTable(data) {
+            // Check required columns
+            const requiredColumns = ['Mode', 'Media Row ID', 'Count Ridership'];
+            const headers = Object.keys(data[0]);
+            
+            if (!requiredColumns.every(col => headers.includes(col))) {
+                throw new Error('Required columns missing. Please ensure your file has: Mode, Media Row ID, and Count Ridership columns.');
+            }
+
+            // Create pivot table structure
+            const pivot = {};
+            const modes = new Set();
+
+            // First pass: collect all modes and create basic structure
+            data.forEach(row => {
+                const mediaRowId = row['Media Row ID'];
+                const mode = row['Mode'];
+                const count = Number(row['Count Ridership']) || 0;
+
+                modes.add(mode);
+                
+                if (!pivot[mediaRowId]) {
+                    pivot[mediaRowId] = {};
+                }
+                
+                if (!pivot[mediaRowId][mode]) {
+                    pivot[mediaRowId][mode] = 0;
+                }
+                
+                pivot[mediaRowId][mode] += count;
+            });
+
+            // Convert to array format and add totals
+            const modesArray = Array.from(modes);
+            const resultArray = Object.entries(pivot).map(([mediaRowId, modeData]) => {
+                const row = {
+                    'Media Row ID': mediaRowId
+                };
+
+                // Fill in all modes (including zeros for missing data)
+                modesArray.forEach(mode => {
+                    row[mode] = modeData[mode] || 0;
+                });
+
+                // Calculate total (sum of Transit and Rail if they exist)
+                row['Total'] = (row['Transit'] || 0) + (row['Rail'] || 0);
+
+                return row;
+            });
+
+            // Add grand total row
+            const grandTotal = {
+                'Media Row ID': 'Grand Total'
+            };
+            
+            modesArray.forEach(mode => {
+                grandTotal[mode] = resultArray.reduce((sum, row) => sum + (row[mode] || 0), 0);
+            });
+            
+            grandTotal['Total'] = (grandTotal['Transit'] || 0) + (grandTotal['Rail'] || 0);
+            
+            resultArray.push(grandTotal);
+
+            return resultArray;
+        }
+
+        function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showError('Please select a file first!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Get first sheet
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    // Create pivot table
+                    const processedData = createPivotTable(jsonData);
+                    
+                    // Create new workbook
+                    const newWorkbook = XLSX.utils.book_new();
+                    const newSheet = XLSX.utils.json_to_sheet(processedData);
+
+                    // Auto-size columns
+                    const maxWidths = {};
+                    processedData.forEach(row => {
+                        Object.entries(row).forEach(([key, value]) => {
+                            const valueLength = String(value).length;
+                            maxWidths[key] = Math.max(maxWidths[key] || 0, valueLength, key.length);
+                        });
+                    });
+
+                    // Apply column widths
+                    const ws_cols = Object.entries(maxWidths).map(([key, width]) => ({
+                        wch: width + 2
+                    }));
+                    newSheet['!cols'] = ws_cols;
+                    
+                    XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Mode Matrix');
+                    
+                    // Generate filename based on original filename
+                    const baseName = file.name.replace(/\.[^/.]+$/, "");
+                    const newFileName = `${baseName} - Mode Matrix.xlsx`;
+                    
+                    // Download file
+                    XLSX.writeFile(newWorkbook, newFileName);
+                } catch (error) {
+                    showError('Error processing file: ' + error.message);
+                }
+            };
+            
+            reader.onerror = function(error) {
+                showError('Error reading file: ' + error.message);
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+    </script>        
+    
+    <div class="container">
+        <h1>What is a mode matrix?</h1>
+        <p> This generator outputs an excel sheet with each unique Media Row ID that rode SEPTA
+            and how many times they rode on transit, rail, or CCT. Totals are included.
+        </p>
+    </div>
+</body>
+
+</html>

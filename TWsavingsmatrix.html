@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Wallet Savings Matrix Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'cambria', arial;
+            background-color: #02021b;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            background-color: white;
+            padding: 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1.6;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header a {
+            color: #030331;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 0 20px;
+            padding: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .header a:hover {
+            background-color: #294d5a;
+            border-radius: 8px;
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            background-color: #ffffff;
+            color: #030331;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 375px;
+            margin: 30px auto;
+            transition: background-color 0.3s, color 0.3s, opacity 0.3s;
+        }
+
+        h1 {
+            color: #030331;
+            margin-bottom: 20px;
+        }
+
+        h1:hover {
+            color: #294d5a;
+        }
+
+        .error {
+            color: #dc3545;
+            margin: 10px 0;
+            display: none;
+        }
+
+        input[type="file"], input[type="number"] {
+            margin: 10px 0;
+            width: 100%;
+            max-width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #030331;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+
+        button:hover {
+            background-color: #294d5a;
+        }
+
+        .instructions {
+            text-align: left;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #030331;
+        }
+
+        .cost-inputs {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="index.html">Home</a>
+        <a href="DataCleaner.html">Data Cleaner</a>
+        <a href="modematrix.html">Mode Matrix Generator</a>
+        <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
+        <a href="weekdaymatrix.html">Weekday/Weekend Mode Matrix</a>
+        <a href="TWsavingsmatrix.html">Travel Wallet Savings Matrix</a>
+    </div>
+
+    <div class="container">
+        <h1>Travel Wallet Savings Matrix Generator</h1>
+        <div class="instructions">
+            <p>This tool generates a matrix showing Travel Wallet savings by Media Row ID. 
+               Please ensure your data is cleaned before uploading.</p>
+        </div>
+        <div class="error" id="errorMessage"></div>
+        <div class="cost-inputs">
+            <input type="number" id="railTWCost" placeholder="Rail TW cost ($)" step="0.01" required>
+            <input type="number" id="transitTWCost" placeholder="Transit TW cost ($)" step="0.01" required>
+        </div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" required>
+        <button onclick="processFile()">Generate Matrix</button>
+    </div>
+
+    <div class="container">
+        <h1>What is a Travel Wallet savings matrix?</h1>
+        <p>This generator creates an Excel sheet showing Travel Wallet costs for each unique Media Row ID,
+           including separate columns for Rail TW and Transit TW costs, plus total savings.</p>
+    </div>
+
+    <script>
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function createPivotTable(data, railTWCost, transitTWCost) {
+            const requiredColumns = ['Mode', 'Media Row ID', 'Count Ridership'];
+            const headers = Object.keys(data[0]);
+            
+            if (!requiredColumns.every(col => headers.includes(col))) {
+                throw new Error('Required columns missing. Please ensure your file has: Mode, Media Row ID, and Count Ridership columns.');
+            }
+
+            // Create pivot table structure
+            const pivot = {};
+            
+            // Process data
+            data.forEach(row => {
+                const mediaRowId = row['Media Row ID'];
+                const mode = row['Mode'];
+                const count = Number(row['Count Ridership']) || 0;
+                
+                if (!pivot[mediaRowId]) {
+                    pivot[mediaRowId] = {
+                        'Rail': 0,
+                        'Transit': 0,
+                        'CCT': 0
+                    };
+                }
+                
+                if (mode in pivot[mediaRowId]) {
+                    pivot[mediaRowId][mode] += count;
+                }
+            });
+
+            // Convert to array format and add calculations
+            const resultArray = Object.entries(pivot).map(([mediaRowId, modeData]) => {
+                const railTW = modeData['Rail'] * railTWCost;
+                const transitTW = modeData['Transit'] * transitTWCost;
+                
+                return {
+                    'Media Row ID': mediaRowId,
+                    'Rail': modeData['Rail'],
+                    'Transit': modeData['Transit'],
+                    'Rail TW': railTW,
+                    'Transit TW': transitTW,
+                    'Total TW': railTW + transitTW
+                };
+            });
+
+            // Add grand total row
+            const grandTotal = resultArray.reduce((total, row) => {
+                return {
+                    'Media Row ID': 'Grand Total',
+                    'Rail': (total['Rail'] || 0) + row['Rail'],
+                    'Transit': (total['Transit'] || 0) + row['Transit'],
+                    'Rail TW': (total['Rail TW'] || 0) + row['Rail TW'],
+                    'Transit TW': (total['Transit TW'] || 0) + row['Transit TW'],
+                    'Total TW': (total['Total TW'] || 0) + row['Total TW']
+                };
+            }, {});
+
+            resultArray.push(grandTotal);
+
+            return resultArray;
+        }
+
+        function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            const railTWCost = parseFloat(document.getElementById('railTWCost').value);
+            const transitTWCost = parseFloat(document.getElementById('transitTWCost').value);
+            
+            if (!fileInput.files[0]) {
+                showError('Please select a file first!');
+                return;
+            }
+
+            if (isNaN(railTWCost) || isNaN(transitTWCost)) {
+                showError('Please enter valid costs for both Rail TW and Transit TW!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Get first sheet
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    // Create pivot table with TW calculations
+                    const processedData = createPivotTable(jsonData, railTWCost, transitTWCost);
+                    
+                    // Create new workbook
+                    const newWorkbook = XLSX.utils.book_new();
+                    const newSheet = XLSX.utils.json_to_sheet(processedData);
+
+                    // Format numbers as currency where appropriate
+                    const currencyColumns = ['Rail TW', 'Transit TW', 'Total TW'];
+                    const range = XLSX.utils.decode_range(newSheet['!ref']);
+                    
+                    for (let R = range.s.r; R <= range.e.r; R++) {
+                        for (let C = range.s.c; C <= range.e.c; C++) {
+                            const cell_address = {c: C, r: R};
+                            const cell_ref = XLSX.utils.encode_cell(cell_address);
+                            const cell = newSheet[cell_ref];
+                            
+                            if (cell && currencyColumns.includes(processedData[0][Object.keys(processedData[0])[C]])) {
+                                cell.z = '$#,##0.00';
+                            }
+                        }
+                    }
+
+                    // Auto-size columns
+                    const maxWidths = {};
+                    processedData.forEach(row => {
+                        Object.entries(row).forEach(([key, value]) => {
+                            const valueLength = String(value).length;
+                            maxWidths[key] = Math.max(maxWidths[key] || 0, valueLength, key.length);
+                        });
+                    });
+
+                    const ws_cols = Object.entries(maxWidths).map(([key, width]) => ({
+                        wch: width + 2
+                    }));
+                    newSheet['!cols'] = ws_cols;
+                    
+                    XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Mode Matrix TW savings');
+                    
+                    // Generate filename
+                    const baseName = fileInput.files[0].name.replace(/\.[^/.]+$/, "");
+                    const newFileName = `${baseName} - Mode Matrix TW savings.xlsx`;
+                    
+                    // Download file
+                    XLSX.writeFile(newWorkbook, newFileName);
+                } catch (error) {
+                    showError('Error processing file: ' + error.message);
+                }
+            };
+            
+            reader.onerror = function(error) {
+                showError('Error reading file: ' + error.message);
+            };
+            
+            reader.readAsArrayBuffer(fileInput.files[0]);
+        }
+    </script>
+</body>
+</html>
