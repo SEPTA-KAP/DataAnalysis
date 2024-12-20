@@ -32,21 +32,21 @@
 
         .steam {
             position: absolute;
-            width: 6px;  /* Reduced from 10px */
-            height: 6px; /* Reduced from 10px */
-            background: rgba(255, 255, 255, 0.3); /* More transparent */
+            width: 6px;
+            height: 6px;
+            background: rgba(255, 255, 255, .7);
             border-radius: 50%;
             pointer-events: none;
-            filter: blur(1px); /* Added slight blur for softer appearance */
+            filter: blur(1px);
         }
 
         @keyframes steamFloat {
             0% {
                 transform: translate(0, 0) scale(1);
-                opacity: 0.3; /* Starting more transparent */
+                opacity: 0.5;
             }
             100% {
-                transform: translate(0, -20px) scale(1.5); /* Reduced scale */
+                transform: translate(0, -20px) scale(1.5);
                 opacity: 0;
             }
         }
@@ -164,7 +164,7 @@
 
             const startX = isLeftToRight ? -200 : window.innerWidth;
             const endX = isLeftToRight ? window.innerWidth : -200;
-            const duration = 15000;
+            const duration = 15000; // Reduced from 15000 to make trains move faster
             const startTime = Date.now();
 
             function animate() {
@@ -177,7 +177,7 @@
                                              progress > 0.9 ? (1 - progress) * 10 : 
                                              1;
 
-                if (progress > 0.1 && progress < 0.9 && Math.random() < 0.3) { // Reduced frequency
+                if (progress > 0.1 && progress < 0.9 && Math.random() < 0.4) { // Increased steam frequency
                     createSteam(trainContainer, isLeftToRight);
                 }
 
@@ -185,8 +185,8 @@
                     requestAnimationFrame(animate);
                 } else {
                     document.body.removeChild(trainContainer);
-                    const nextTrainDelay = 100;
-                    setTimeout(createTrain, nextTrainDelay);
+                    // Reduced delay between trains
+                    setTimeout(createTrain, Math.random() * 2000 + 1000); // Random delay between 1-3 seconds
                 }
             }
 
@@ -203,19 +203,17 @@
             const steam = document.createElement('div');
             steam.className = 'steam';
             
-            // Adjusted positioning to be closer to the train
-            const steamX = isLeftToRight ? 5 : 185; // Moved closer to train
-            const steamY = Math.random() * 10 + 35; // Tighter vertical range
+            const steamX = isLeftToRight ? 5 : 185;
+            const steamY = Math.random() * 10 + 35;
             
             steam.style.left = `${steamX}px`;
             steam.style.top = `${steamY}%`;
 
-            // Smaller random size variation
-            const size = Math.random() * 3 + 4; // Reduced size range
+            const size = Math.random() * 3 + 4;
             steam.style.width = `${size}px`;
             steam.style.height = `${size}px`;
             
-            steam.style.animation = 'steamFloat 0.8s ease-out forwards'; // Slightly faster animation
+            steam.style.animation = 'steamFloat 0.8s ease-out forwards';
             
             trainContainer.appendChild(steam);
             
@@ -226,8 +224,10 @@
             }, 800);
         }
 
-        // Start the first train
-        createTrain();
+        // Create multiple initial trains with slight delays
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => createTrain(), i * 1000);
+        }
     </script>
 </body>
 </html>
