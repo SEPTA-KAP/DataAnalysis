@@ -24,7 +24,7 @@
             pointer-events: none;
         }
 
-        .train {
+        .train, .bus {
             width: 200px;
             height: auto;
             position: relative;
@@ -154,79 +154,81 @@
     </div>
 
     <script>
-        function createTrain() {
-            const trainContainer = document.createElement('div');
+        function createTrainOrBus() {
+            const isTrain = Math.random() < 0.5; // Randomly decide between train and bus
+            const vehicleContainer = document.createElement('div');
             const isLeftToRight = Math.random() < 0.5;
             const verticalPosition = Math.random() * 80 + 10;
-            
-            trainContainer.className = 'train-container';
-            trainContainer.style.top = `${verticalPosition}%`;
+
+            vehicleContainer.className = 'train-container';
+            vehicleContainer.style.top = `${verticalPosition}%`;
 
             const startX = isLeftToRight ? -200 : window.innerWidth;
             const endX = isLeftToRight ? window.innerWidth : -200;
-            const duration = 15000; // Reduced from 15000 to make trains move faster
+            const duration = 15000; // Reduced from 15000 to make vehicles move faster
             const startTime = Date.now();
 
             function animate() {
                 const elapsed = Date.now() - startTime;
                 const progress = Math.min(elapsed / duration, 1);
-                
+
                 const currentX = startX + (endX - startX) * progress;
-                trainContainer.style.transform = `translateX(${currentX}px)`;
-                trainContainer.style.opacity = progress < 0.1 ? progress * 10 : 
-                                             progress > 0.9 ? (1 - progress) * 10 : 
-                                             1;
+                vehicleContainer.style.transform = `translateX(${currentX}px)`;
+                vehicleContainer.style.opacity = progress < 0.1 ? progress * 10 : 
+                                                progress > 0.9 ? (1 - progress) * 10 : 
+                                                1;
 
                 if (progress > 0.1 && progress < 0.9 && Math.random() < 0.4) { // Increased steam frequency
-                    createSteam(trainContainer, isLeftToRight);
+                    createSteam(vehicleContainer, isLeftToRight);
                 }
 
                 if (progress < 1) {
                     requestAnimationFrame(animate);
                 } else {
-                    document.body.removeChild(trainContainer);
-                    // Reduced delay between trains
-                    setTimeout(createTrain, Math.random() * 2000 + 1000); // Random delay between 1-3 seconds
+                    document.body.removeChild(vehicleContainer);
+                    // Reduced delay between vehicles
+                    setTimeout(createTrainOrBus, Math.random() * 2000 + 1000); // Random delay between 1-3 seconds
                 }
             }
 
-            const train = document.createElement('img');
-            train.className = 'train';
-            train.src = isLeftToRight ? 'SubwayRight.png' : 'SubwayLeft.png';
-            trainContainer.appendChild(train);
-            document.body.appendChild(trainContainer);
+            const vehicle = document.createElement('img');
+            vehicle.className = isTrain ? 'train' : 'bus';
+            vehicle.src = isTrain ? (isLeftToRight ? 'SubwayRight.png' : 'SubwayLeft.png') 
+                                  : (isLeftToRight ? 'BusRight.png' : 'BusLeft.png');
+            vehicleContainer.appendChild(vehicle);
+            document.body.appendChild(vehicleContainer);
 
             animate();
         }
 
-        function createSteam(trainContainer, isLeftToRight) {
+        function createSteam(vehicleContainer, isLeftToRight) {
             const steam = document.createElement('div');
             steam.className = 'steam';
-            
+
             const steamX = isLeftToRight ? 5 : 185;
             const steamY = Math.random() * 10 + 35;
-            
+
             steam.style.left = `${steamX}px`;
             steam.style.top = `${steamY}%`;
 
             const size = Math.random() * 3 + 4;
             steam.style.width = `${size}px`;
             steam.style.height = `${size}px`;
-            
+
             steam.style.animation = 'steamFloat 0.8s ease-out forwards';
-            
-            trainContainer.appendChild(steam);
-            
+
+            vehicleContainer.appendChild(steam);
+
             setTimeout(() => {
-                if (trainContainer.contains(steam)) {
-                    trainContainer.removeChild(steam);
+                if (vehicleContainer.contains(steam)) {
+                    vehicleContainer.removeChild(steam);
                 }
             }, 800);
         }
 
-        // Create multiple initial trains with slight delays
+        // Create multiple initial vehicles (train or bus) with slight delays
         for (let i = 0; i < 3; i++) {
-            setTimeout(() => createTrain(), i * 1000);
+            setTimeout(() => createTrainOrBus(), i * 1000);
         }
     </script>
 </body>
