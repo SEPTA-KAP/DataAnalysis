@@ -17,39 +17,6 @@
             position: relative;
         }
 
-        .train-container {
-            position: fixed;
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        .train {
-            width: 200px;
-            height: auto;
-            position: relative;
-        }
-
-        .steam {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: rgba(255, 255, 255, .7);
-            border-radius: 50%;
-            pointer-events: none;
-            filter: blur(1px);
-        }
-
-        @keyframes steamFloat {
-            0% {
-                transform: translate(0, 0) scale(1);
-                opacity: 0.5;
-            }
-            100% {
-                transform: translate(0, -20px) scale(1.5);
-                opacity: 0;
-            }
-        }
-
         .header {
             background-color: white;
             padding: 10px 0;
@@ -149,82 +116,5 @@
         <p>This program also does not filter based on product type: if the user only wants data from the Key Advantage All Access Pass, he or she must filter out all other product 
             types and remove those rows manually.</p>
     </div>
-
-    <script>
-        function createTrain() {
-            const trainContainer = document.createElement('div');
-            const isLeftToRight = Math.random() < 0.5;
-            const verticalPosition = Math.random() * 80 + 10;
-
-            trainContainer.className = 'train-container';
-            trainContainer.style.top = `${verticalPosition}%`;
-
-            const startX = isLeftToRight ? -200 : window.innerWidth;
-            const endX = isLeftToRight ? window.innerWidth : -200;
-            const duration = 12000; // Made trains slightly faster
-            const startTime = Date.now();
-
-            function animate() {
-                const elapsed = Date.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-
-                const currentX = startX + (endX - startX) * progress;
-                trainContainer.style.transform = `translateX(${currentX}px)`;
-                trainContainer.style.opacity = progress < 0.1 ? progress * 10 : 
-                                             progress > 0.9 ? (1 - progress) * 10 : 
-                                             1;
-
-                if (progress > 0.1 && progress < 0.9 && Math.random() < 0.5) { // Increased steam frequency
-                    createSteam(trainContainer, isLeftToRight);
-                }
-
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
-                } else {
-                    document.body.removeChild(trainContainer);
-                    // Create new train sooner
-                    setTimeout(createTrain, Math.random() * 1000 + 500); // Random delay between 0.5-1.5 seconds
-                }
-            }
-
-            const train = document.createElement('img');
-            train.className = 'train';
-            train.src = isLeftToRight ? 'SubwayRight.png' : 'SubwayLeft.png';
-            trainContainer.appendChild(train);
-            document.body.appendChild(trainContainer);
-
-            animate();
-        }
-
-        function createSteam(trainContainer, isLeftToRight) {
-            const steam = document.createElement('div');
-            steam.className = 'steam';
-
-            const steamX = isLeftToRight ? 5 : 185;
-            const steamY = Math.random() * 10 + 35;
-
-            steam.style.left = `${steamX}px`;
-            steam.style.top = `${steamY}%`;
-
-            const size = Math.random() * 3 + 4;
-            steam.style.width = `${size}px`;
-            steam.style.height = `${size}px`;
-
-            steam.style.animation = 'steamFloat 0.8s ease-out forwards';
-
-            trainContainer.appendChild(steam);
-
-            setTimeout(() => {
-                if (trainContainer.contains(steam)) {
-                    trainContainer.removeChild(steam);
-                }
-            }, 800);
-        }
-
-        // Create multiple initial trains with slight delays
-        for (let i = 0; i < 5; i++) { // Increased initial number of trains
-            setTimeout(() => createTrain(), i * 500); // Reduced delay between initial trains
-        }
-    </script>
 </body>
 </html>
