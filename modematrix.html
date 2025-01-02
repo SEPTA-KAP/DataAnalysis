@@ -25,6 +25,8 @@
             align-items: center;
             line-height: 1.6;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 100;
         }
 
         .header a {
@@ -92,6 +94,48 @@
             font-size: 14px;
             color: #02021b;
         }
+        .dropbtn {
+            color: #02021b;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 0 20px;
+            padding: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .dropbtn:hover {
+            background-color: #294d5a;
+            color: white;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 250px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            z-index: 101;
+            border-radius: 8px;
+            margin-top: 5px;
+        }
+
+        .dropdown-content a {
+            color: #02021b;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            margin: 0;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -99,10 +143,17 @@
     <div class="header">
         <a href="index.html">Home</a>
         <a href="DataCleaner.html">Data Cleaner</a>
-        <a href="modematrix.html">Mode Matrix Generator</a>
-        <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
-        <a href="weekdaymatrix.html">Weekday/Weekend Mode Matrix</a>
-        <a href="TWsavingsmatrix.html">Travel Wallet Savings Matrix</a>
+        <div class="dropdown">
+            <a href="#" class="dropbtn">Matrix Generators</a>
+            <div class="dropdown-content">
+                <a href="modematrix.html">Mode Matrix</a>
+                <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
+                <a href="weekdaymatrix.html">Weekday/Weekend Mode Matrix</a>
+                <a href="TWsavingsmatrix.html">Travel Wallet Savings Matrix</a>
+            </div>
+        </div>
+        <a href="Updatetracker.html">Update KAP tracker</a>
+        <a href="KAPcalculators.html">Calculators</a>
     </div>
 
     <!--Main Content container-->
