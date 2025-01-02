@@ -1,11 +1,67 @@
 <!DOCTYPE html>
 <html>
-<!-- Head section and styles remain exactly the same, skipping to the script section -->
 <head>
     <title>Revenue Neutrality and Profit Loss Calculator</title>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* All previous styles remain exactly the same */
+        /* Header styles */
+        .header {
+            background-color: white;
+            padding: 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1.6;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 100;
+            width: 100%;
+        }
+
+        .header a, .dropbtn {
+            color: #02021b;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 0 20px;
+            padding: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .header a:hover, .dropbtn:hover {
+            background-color: #294d5a;
+            color: white;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 250px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            z-index: 101;
+            border-radius: 8px;
+            margin-top: 5px;
+        }
+
+        .dropdown-content a {
+            color: #02021b;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            margin: 0;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        /* Existing styles */
         body {
             background-color: #030331;
             color: #090366;
@@ -13,8 +69,8 @@
             margin: 0;
             padding: 0;
             display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            flex-direction: column;
+            align-items: center;
             min-height: 150vh;
             overflow-y: auto;
             padding-bottom: 40px;
@@ -27,8 +83,10 @@
             gap: 30px;
             align-items: center;
             margin-bottom: 40px;
+            z-index: 1;
         }
 
+        /* Rest of your existing styles remain the same */
         h2 {
             color: #090366;
             margin-top: 0;
@@ -112,8 +170,24 @@
     </style>
 </head>
 <body>
+    <div class="header">
+        <a href="index.html">Home</a>
+        <a href="DataCleaner.html">Data Cleaner</a>
+        <div class="dropdown">
+            <a href="#" class="dropbtn">Matrix Generator</a>
+            <div class="dropdown-content">
+                <a href="modematrix.html">Mode Matrix Generator</a>
+                <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
+                <a href="weekdaymatrix.html">Weekday/Weekend Mode Matrix</a>
+                <a href="TWsavingsmatrix.html">Travel Wallet Savings Matrix</a>
+            </div>
+        </div>
+        <a href="tracker.html">Tracker Monthly Updater</a>
+        <a href="calculators.html">Calculators</a>
+    </div>
+
     <div class="calculator-container">
-        <!-- Revenue Neutrality Calculator stays exactly the same -->
+        <!-- Rest of your existing HTML remains exactly the same -->
         <div class="calculator">
             <h2>Revenue Neutrality Calculator</h2>
             
@@ -156,7 +230,6 @@
             <h3 id="result"></h3>
         </div>
 
-        <!-- Profit/Loss Calculator -->
         <div class="calculator">
             <h2>Profit/Loss Calculator</h2>
             
@@ -181,6 +254,7 @@
     </div>
 
     <script>
+        // Your existing JavaScript remains exactly the same
         function toggleCCTFields() {
             var CCTCheckbox = document.getElementById('CCTCheckbox').checked;
             var CCTFields = document.getElementById('CCTFields');
@@ -233,22 +307,18 @@
                 count++;
                 
                 if (currentPrice > rnPrice) {
-                    // Calculate loss for this term
                     const lossThisTerm = currentPrice - rnPrice;
                     totalLoss += lossThisTerm;
                     
-                    // Calculate next price
                     if (currentPrice * (1 - adjustmentFactor) < rnPrice) {
                         currentPrice = rnPrice;
                     } else {
                         currentPrice *= (1 - adjustmentFactor);
                     }
                 } else {
-                    // Calculate loss for this term
                     const lossThisTerm = rnPrice - currentPrice;
                     totalLoss += lossThisTerm;
                     
-                    // Calculate next price
                     if (currentPrice * (1 + adjustmentFactor) > rnPrice) {
                         currentPrice = rnPrice;
                     } else {
@@ -256,14 +326,12 @@
                     }
                 }
 
-                // Safety check to prevent infinite loops
                 if (count > 1000) {
                     alert("Calculation exceeded maximum iterations.");
                     return;
                 }
             }
 
-            // Multiply total loss by number of employees
             totalLoss *= employees;
 
             const profitLossText = ctPrice > rnPrice 
