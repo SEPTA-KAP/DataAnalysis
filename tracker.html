@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KAP Tracker Monthly Update - Data Editor</title>
+    <title>Travel Wallet Savings Matrix</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
-            background-color: #02021b;
             font-family: 'cambria', arial;
+            background-color: #02021b;
             margin: 0;
             padding: 0;
             display: flex;
@@ -15,247 +16,332 @@
             min-height: 100vh;
         }
 
-        .container {
+        .header {
             background-color: white;
+            padding: 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1.6;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 100;
+        }
+
+        .header a {
+            color: #030331;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 0 20px;
+            padding: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .header a:hover {
+            background-color: #294d5a;
+            border-radius: 8px;
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            background-color: #ffffff;
+            color: #030331;
             padding: 30px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            width: 500px;
+            max-width: 375px;
             margin: 30px auto;
-            text-align: center;
             transition: background-color 0.3s, color 0.3s, opacity 0.3s;
         }
 
-        .container:hover {
-            background-color: #294d5a;
-            opacity: 0.9;
-        }
-
-        .container:hover h1,
-        .container:hover p,
-        .container:hover label {
-            color: white;
-        }
-
-        .container h1 {
+        h1 {
+            color: #030331;
             margin-bottom: 20px;
-            color: #02021b;
         }
 
-        .container p {
+        h1:hover {
+            color: #294d5a;
+        }
+
+        .error {
+            color: #dc3545;
             margin: 10px 0;
-            color: #000000;
-            transition: color 0.3s;
+            display: none;
         }
 
-        .file-input {
-            margin: 20px 0;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 10px;
-            color: #000000;
-            transition: color 0.3s;
-        }
-
-        input[type="file"] {
-            display: block;
-            margin: 10px auto;
-            padding: 10px;
-            border: 1px solid #ccc;
+        input[type="file"], input[type="number"] {
+            margin: 10px 0;
+            width: 100%;
+            max-width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
             border-radius: 4px;
-            width: 80%;
         }
 
         button {
-            background-color: #02021b;
+            padding: 10px 20px;
+            background-color: #030331;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
+            border-radius: 5px;
             cursor: pointer;
-            margin: 10px;
-            transition: background-color 0.3s;
+            font-size: 16px;
+            margin: 10px 0;
         }
 
         button:hover {
             background-color: #294d5a;
         }
 
-        #output {
-            margin-top: 20px;
+        .instructions {
             text-align: left;
-            white-space: pre-wrap;
-            font-family: monospace;
-            max-height: 300px;
-            overflow-y: auto;
-            padding: 10px;
-            background-color: #f5f5f5;
-            border-radius: 4px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #030331;
         }
 
-        #download {
+        .cost-inputs {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .dropbtn {
+            color: #02021b;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 0 20px;
+            padding: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .dropbtn:hover {
+            background-color: #294d5a;
+            color: white;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
             display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 250px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            z-index: 101;
+            border-radius: 8px;
+            margin-top: 5px;
+        }
+
+        .dropdown-content a {
+            color: #02021b;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            margin: 0;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>KAP Tracker Monthly Update</h1>
-        <p>Upload your Excel file for processing. The file should contain KAP tracking data in the expected format.</p>
-        
-        <div class="file-input">
-            <label for="excelFile">Select Excel File:</label>
-            <input type="file" id="excelFile" accept=".xlsx,.xls">
-            <button onclick="processFile()">Process File</button>
-            <button id="download" onclick="downloadCSV()">Download CSV</button>
+    <div class="header">
+        <a href="index.html">Home</a>
+        <a href="DataCleaner.html">Data Cleaner</a>
+        <div class="dropdown">
+            <a href="#" class="dropbtn">Matrix Generators</a>
+            <div class="dropdown-content">
+                <a href="modematrix.html">Mode Matrix</a>
+                <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
+                <a href="weekdaymatrix.html">Weekday/Weekend Mode Matrix</a>
+                <a href="TWsavingsmatrix.html">Travel Wallet Savings Matrix</a>
+            </div>
         </div>
-        
-        <div id="output"></div>
+        <a href="Updatetracker.html">Update KAP tracker</a>
+        <a href="KAPcalculators.html">Calculators</a>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <div class="container">
+        <h1>Travel Wallet Savings Matrix Generator</h1>
+        <div class="instructions">
+            <p>This tool generates a matrix showing Travel Wallet savings by Media Row ID. 
+               Please ensure your data is cleaned before uploading.</p>
+        </div>
+        <div class="error" id="errorMessage"></div>
+        <div class="cost-inputs">
+            <input type="number" id="railTWCost" placeholder="Rail TW cost ($)" step="0.01" required>
+            <input type="number" id="transitTWCost" placeholder="Transit TW cost ($)" step="0.01" required>
+        </div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" required>
+        <button onclick="processFile()">Generate Matrix</button>
+    </div>
+
+    <div class="container">
+        <h1>What is a Travel Wallet savings matrix?</h1>
+        <p>This generator creates an Excel sheet showing Travel Wallet costs for each unique Media Row ID,
+           including separate columns for Rail TW and Transit TW costs, plus total savings.</p>
+    </div>
+
     <script>
-        let processedData = null;
-        let sheetName = '';
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function createPivotTable(data, railTWCost, transitTWCost) {
+            const requiredColumns = ['Mode', 'Media Row ID', 'Count Ridership'];
+            const headers = Object.keys(data[0]);
+            
+            if (!requiredColumns.every(col => headers.includes(col))) {
+                throw new Error('Required columns missing. Please ensure your file has: Mode, Media Row ID, and Count Ridership columns.');
+            }
+
+            // Create pivot table structure
+            const pivot = {};
+            
+            // Process data
+            data.forEach(row => {
+                const mediaRowId = row['Media Row ID'];
+                const mode = row['Mode'];
+                const count = Number(row['Count Ridership']) || 0;
+                
+                if (!pivot[mediaRowId]) {
+                    pivot[mediaRowId] = {
+                        'Rail': 0,
+                        'Transit': 0,
+                        'CCT': 0
+                    };
+                }
+                
+                if (mode in pivot[mediaRowId]) {
+                    pivot[mediaRowId][mode] += count;
+                }
+            });
+
+            // Convert to array format and add calculations
+            const resultArray = Object.entries(pivot).map(([mediaRowId, modeData]) => {
+                const railTW = modeData['Rail'] * railTWCost;
+                const transitTW = modeData['Transit'] * transitTWCost;
+                
+                return {
+                    'Media Row ID': mediaRowId,
+                    'Rail': modeData['Rail'],
+                    'Transit': modeData['Transit'],
+                    'Rail TW': railTW,
+                    'Transit TW': transitTW,
+                    'Total TW': railTW + transitTW
+                };
+            });
+
+            // Add grand total row
+            const grandTotal = resultArray.reduce((total, row) => {
+                return {
+                    'Media Row ID': 'Grand Total',
+                    'Rail': (total['Rail'] || 0) + row['Rail'],
+                    'Transit': (total['Transit'] || 0) + row['Transit'],
+                    'Rail TW': (total['Rail TW'] || 0) + row['Rail TW'],
+                    'Transit TW': (total['Transit TW'] || 0) + row['Transit TW'],
+                    'Total TW': (total['Total TW'] || 0) + row['Total TW']
+                };
+            }, {});
+
+            resultArray.push(grandTotal);
+
+            return resultArray;
+        }
 
         function processFile() {
-            const fileInput = document.getElementById('excelFile');
-            const outputDiv = document.getElementById('output');
-            const downloadBtn = document.getElementById('download');
+            const fileInput = document.getElementById('fileInput');
+            const railTWCost = parseFloat(document.getElementById('railTWCost').value);
+            const transitTWCost = parseFloat(document.getElementById('transitTWCost').value);
             
-            if (!fileInput.files.length) {
-                outputDiv.textContent = 'Please select a file first.';
+            if (!fileInput.files[0]) {
+                showError('Please select a file first!');
                 return;
             }
 
-            const file = fileInput.files[0];
-            const reader = new FileReader();
+            if (isNaN(railTWCost) || isNaN(transitTWCost)) {
+                showError('Please enter valid costs for both Rail TW and Transit TW!');
+                return;
+            }
 
+            const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, {type: 'array'});
-                    sheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Get first sheet
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    // Create pivot table with TW calculations
+                    const processedData = createPivotTable(jsonData, railTWCost, transitTWCost);
+                    
+                    // Create new workbook
+                    const newWorkbook = XLSX.utils.book_new();
+                    const newSheet = XLSX.utils.json_to_sheet(processedData);
 
-                    // Process the data according to the Python logic
-                    const result = processExcelData(jsonData);
-                    processedData = result;
-
-                    // Display the results
-                    outputDiv.textContent = JSON.stringify(result, null, 2);
-                    downloadBtn.style.display = 'inline-block';
-                } catch (error) {
-                    outputDiv.textContent = `Error processing file: ${error.message}`;
-                    downloadBtn.style.display = 'none';
-                }
-            };
-
-            reader.onerror = function() {
-                outputDiv.textContent = 'Error reading file';
-                downloadBtn.style.display = 'none';
-            };
-
-            reader.readAsArrayBuffer(file);
-        }
-
-        function processExcelData(data) {
-            // Find company row (row 8, 0-based index 7)
-            const companyRow = data[7].slice(2);
-            const companies = companyRow.filter(cell => cell != null && cell !== '');
-            const result = {};
-            companies.forEach(company => result[company] = {});
-
-            // Process pass metrics
-            const passMetrics = ["Unique Passes in Use", "Contracted", "Activated"];
-            data.forEach((row, i) => {
-                const metric = row[0]?.toString().trim();
-                if (passMetrics.includes(metric)) {
-                    companies.forEach((company, j) => {
-                        const value = row[j + 2];
-                        if (value != null) {
-                            result[company][`Pass:${metric}`] = value;
+                    // Format numbers as currency where appropriate
+                    const currencyColumns = ['Rail TW', 'Transit TW', 'Total TW'];
+                    const range = XLSX.utils.decode_range(newSheet['!ref']);
+                    
+                    for (let R = range.s.r; R <= range.e.r; R++) {
+                        for (let C = range.s.c; C <= range.e.c; C++) {
+                            const cell_address = {c: C, r: R};
+                            const cell_ref = XLSX.utils.encode_cell(cell_address);
+                            const cell = newSheet[cell_ref];
+                            
+                            if (cell && currencyColumns.includes(processedData[0][Object.keys(processedData[0])[C]])) {
+                                cell.z = '$#,##0.00';
+                            }
                         }
+                    }
+
+                    // Auto-size columns
+                    const maxWidths = {};
+                    processedData.forEach(row => {
+                        Object.entries(row).forEach(([key, value]) => {
+                            const valueLength = String(value).length;
+                            maxWidths[key] = Math.max(maxWidths[key] || 0, valueLength, key.length);
+                        });
                     });
-                }
-            });
 
-            // Process sections
-            const sections = {
-                "transit": { prefix: "Transit", rows: 4 },
-                "regional rail": { prefix: "Regional Rail", rows: 2 },
-                "paratransit": { prefix: "Paratransit", rows: 2 }
+                    const ws_cols = Object.entries(maxWidths).map(([key, width]) => ({
+                        wch: width + 2
+                    }));
+                    newSheet['!cols'] = ws_cols;
+                    
+                    XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Mode Matrix TW savings');
+                    
+                    // Generate filename
+                    const baseName = fileInput.files[0].name.replace(/\.[^/.]+$/, "");
+                    const newFileName = `${baseName} - Mode Matrix TW savings.xlsx`;
+                    
+                    // Download file
+                    XLSX.writeFile(newWorkbook, newFileName);
+                } catch (error) {
+                    showError('Error processing file: ' + error.message);
+                }
             };
-
-            data.forEach((row, i) => {
-                const sectionName = row[0]?.toString().toLowerCase();
-                if (sections[sectionName]) {
-                    const { prefix, rows } = sections[sectionName];
-                    for (let r = 1; r <= rows; r++) {
-                        if (data[i + r] && data[i + r][0]) {
-                            const title = data[i + r][0].trim();
-                            companies.forEach((company, j) => {
-                                const value = data[i + r][j + 2];
-                                if (value != null) {
-                                    result[company][`${prefix}:${title}`] = value;
-                                }
-                            });
-                        }
-                    }
-                }
-            });
-
-            // Add consolidated metrics
-            const consolidated = {};
-            Object.values(result).forEach(companyData => {
-                Object.entries(companyData).forEach(([metric, value]) => {
-                    consolidated[metric] = (consolidated[metric] || 0) + value;
-                });
-            });
-            consolidated["Total:Employers"] = companies.length;
-            result["KAP CONSOLIDATED"] = consolidated;
-
-            return result;
-        }
-
-        function downloadCSV() {
-            if (!processedData) return;
-
-            const mapping = [
-                ["Unique Card Taps", "Pass:Unique Passes in Use"],
-                ["Eligible Employees", "Pass:Contracted"],
-                ["Enrolled Employees", "Pass:Activated"],
-                ["Total Transit Trips", "Transit:Total Trips"],
-                ["Unique Card Taps (Transit)", "Transit:Unique Passes"],
-                ["Total Railroad Trips", "Regional Rail:Base Trips"],
-                ["Unique Card Taps (Rail)", "Regional Rail:Unique Passes"],
-                ["Total CCT Trips", "Paratransit:Base Trips"],
-                ["Unique Card Taps (CCT)", "Paratransit:Unique Passes"],
-                ["Total Employers", "Total:Employers"]
-            ];
-
-            let csvContent = "key,value\n";
-            Object.entries(processedData).forEach(([company, data]) => {
-                mapping.forEach(([outputName, dataKey]) => {
-                    if (data[dataKey] != null) {
-                        csvContent += `${company}:${outputName},${data[dataKey]}\n`;
-                    }
-                });
-            });
-
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `${sheetName}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            
+            reader.onerror = function(error) {
+                showError('Error reading file: ' + error.message);
+            };
+            
+            reader.readAsArrayBuffer(fileInput.files[0]);
         }
     </script>
 </body>
