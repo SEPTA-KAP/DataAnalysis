@@ -24,6 +24,8 @@
             align-items: center;
             line-height: 1.6;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 100;
         }
         .header a {
             color: #02021b;
@@ -122,6 +124,43 @@
             white-space: pre-wrap;
             font-family: monospace;
         }
+        .dropbtn {
+            color: #02021b;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 0 20px;
+            padding: 10px;
+            transition: background-color 0.3s;
+        }
+        .dropbtn:hover {
+            background-color: #294d5a;
+            color: white;
+        }
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 250px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            z-index: 101;
+            border-radius: 8px;
+            margin-top: 5px;
+        }
+        .dropdown-content a {
+            color: #02021b;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            margin: 0;
+        }
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -129,11 +168,17 @@
     <div class="header">
         <a href="index.html">Home</a>
         <a href="DataCleaner.html">Data Cleaner</a>
-        <a href="modematrix.html">Mode Matrix Generator</a>
-        <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
-        <a href="weekdaymatrix.html">Weekday/Weekend Mode Matrix</a>
-        <a href="TWsavingsmatrix.html">Travel Wallet Savings Matrix</a>
-
+        <div class="dropdown">
+            <a href="#" class="dropbtn">Matrix Generators</a>
+            <div class="dropdown-content">
+                <a href="modematrix.html">Mode Matrix</a>
+                <a href="monthyearmatrix.html">Month-Year Mode Matrix</a>
+                <a href="weekdaymatrix.html">Weekday/Weekend Mode Matrix</a>
+                <a href="TWsavingsmatrix.html">Travel Wallet Savings Matrix</a>
+            </div>
+        </div>
+        <a href="Updatetracker.html">Update KAP tracker</a>
+        <a href="KAPcalculators.html">Calculators</a>
     </div>
     <div class="container">
         <h1>KAP Data Cleaner</h1>
@@ -166,7 +211,7 @@
 
         document.getElementById('fileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
-            debug(File selected: ${file.name});
+            debug(`File selected: ${file.name}`);
 
             const reader = new FileReader();
 
@@ -174,10 +219,10 @@
                 try {
                     debug('Reading file...');
                     workbook = XLSX.read(e.target.result, { type: 'array' });
-                    debug(File read successfully. Sheets found: ${workbook.SheetNames.join(', ')});
+                    debug(`File read successfully. Sheets found: ${workbook.SheetNames.join(', ')}`);
                     updateSheetList();
                 } catch (error) {
-                    debug(Error reading file: ${error.message});
+                    debug(`Error reading file: ${error.message}`);
                     showStatus('Error reading file: ' + error.message, 'error');
                 }
             };
@@ -208,7 +253,7 @@
                 }
 
                 const sheetName = document.getElementById('sheetSelect').value;
-                debug(Processing sheet: ${sheetName});
+                debug(`Processing sheet: ${sheetName}`);
 
                 // Read the worksheet with specific options
                 const worksheet = workbook.Sheets[sheetName];
@@ -220,7 +265,7 @@
 
                 // Get headers from the first row (now row 6 from the original sheet)
                 const headers = df[0].map(h => h ? String(h).trim() : '');
-                debug(Headers found: ${headers.join(', ')});
+                debug(`Headers found: ${headers.join(', ')}`);
 
                 // Remove the header row and create array of objects
                 df = df.slice(1).map(row => {
@@ -235,7 +280,7 @@
 
                 // Remove empty rows
                 df = df.filter(row => Object.keys(row).length > 0);
-                debug(After removing empty rows: ${df.length} rows);
+                debug(`After removing empty rows: ${df.length} rows`);
 
                 // Remove last rows based on Count Ridership
                 const hasCountRidership = headers.includes('Count Ridership');
@@ -244,7 +289,7 @@
                 // Filter out declined status
                 const beforeFilter = df.length;
                 df = df.filter(row => !['Declined', 'Orphan Declined'].includes(row['Status']));
-                debug(Filtered out ${beforeFilter - df.length} declined status rows);
+                debug(`Filtered out ${beforeFilter - df.length} declined status rows`);
 
                 // Delete Status column
                 df = df.map(row => {
@@ -308,7 +353,7 @@
                     return newRow;
                 });
 
-                debug(Final columns: ${Object.keys(df[0] || {}).join(', ')});
+                debug(`Final columns: ${Object.keys(df[0] || {}).join(', ')}`);
 
                 // Create new workbook and save
                 debug('Creating new workbook...');
@@ -319,7 +364,7 @@
                 // Save file
                 const fileName = document.getElementById('fileInput').files[0].name;
                 const newFileName = fileName.replace(/\.[^/.]+$/, '') + ' - Cleaned Data.xlsx';
-                debug(Saving to file: ${newFileName});
+                debug(`Saving to file: ${newFileName}`);
                 XLSX.writeFile(newWorkbook, newFileName);
 
                 // Show preview
@@ -328,8 +373,8 @@
                 debug('Processing complete');
 
             } catch (error) {
-                debug(Error during processing: ${error.message});
-                showStatus(Error processing file: ${error.message}, 'error');
+                debug(`Error during processing: ${error.message}`);
+                showStatus(`Error processing file: ${error.message}`, 'error');
             }
         }
 
@@ -344,14 +389,14 @@
                 const headers = Object.keys(data[0] || {});
                 let table = '<table><tr>';
                 headers.forEach(header => {
-                    table += <th>${header}</th>;
+                    table += `<th>${header}</th>`;
                 });
                 table += '</tr>';
 
                 data.slice(0, 10).forEach(row => {
                     table += '<tr>';
                     headers.forEach(header => {
-                        table += <td>${row[header] || ''}</td>;
+                        table += `<td>${row[header] || ''}</td>`;
                     });
                     table += '</tr>';
                 });
@@ -360,7 +405,7 @@
                 preview.innerHTML = '<h3>Preview (First 10 rows)</h3>' + table;
                 debug('Preview table generated');
             } catch (error) {
-                debug(Error generating preview: ${error.message});
+                debug(`Error generating preview: ${error.message}`);
             }
         }
 
@@ -368,7 +413,7 @@
             const status = document.getElementById('status');
             status.textContent = message;
             status.className = 'status ' + type;
-            debug(Status: ${message});
+            debug(`Status: ${message}`);
         }
     </script>
 
