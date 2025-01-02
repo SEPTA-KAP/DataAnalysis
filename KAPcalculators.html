@@ -1,1 +1,278 @@
+<!DOCTYPE html>
+<html>
+<!-- Head section and styles remain exactly the same, skipping to the script section -->
+<head>
+    <title>Revenue Neutrality and Profit Loss Calculator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* All previous styles remain exactly the same */
+        body {
+            background-color: #030331;
+            color: #090366;
+            font-family: 'Merriweather', serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 150vh;
+            overflow-y: auto;
+            padding-bottom: 40px;
+        }
 
+        .calculator-container {
+            margin-top: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        h2 {
+            color: #090366;
+            margin-top: 0;
+            text-align: center;
+        }
+
+        h2:hover {
+            color: #ff0000;
+        }
+
+        h3 {
+            color: #090366;
+        }
+
+        label {
+            color: #090366;
+            margin-top: 10px;
+        }
+
+        input {
+            background-color: #ffffff;
+            color: #090366;
+            border: 1px solid #a7c7e7;
+            padding: 10px;
+            margin: 10px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #090366;
+            color: #ffffff;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #7191c2;
+        }
+
+        .calculator {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #a7c7e7;
+            border-radius: 5px;
+            background-color: #ffffff;
+            width: 400px;
+            box-sizing: border-box;
+        }
+
+        .calculator input {
+            padding: 10px;
+        }
+
+        .calculator button {
+            width: 100%;
+        }
+
+        .form-row {
+            margin-bottom: 15px;
+        }
+
+        .checkbox-container {
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        .percentage {
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        #result, #profitLossResult {
+            font-size: 1.2em;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator-container">
+        <!-- Revenue Neutrality Calculator stays exactly the same -->
+        <div class="calculator">
+            <h2>Revenue Neutrality Calculator</h2>
+            
+            <label for="TransitTaps">Enter transit taps: </label>
+            <input type="number" id="TransitTaps"><br>
+
+            <label for="TransitAvgFare">Enter the transit average fare: $ </label>
+            <input type="number" id="TransitAvgFare" step="0.01"><br>
+
+            <label for="RailTaps">Enter rail taps: </label>
+            <input type="number" id="RailTaps"><br>
+
+            <label for="RailAvgFare">Enter the rail average fare: $ </label>
+            <input type="number" id="RailAvgFare" step="0.01"><br>
+
+            <label for="CCTCheckbox">Include CCT Taps? </label>
+            <div class="checkbox-container">
+                <input type="checkbox" id="CCTCheckbox" onchange="toggleCCTFields()"><br>
+            </div>
+
+            <div id="CCTFields" style="display:none;">
+                <div class="form-row">
+                    <label for="CCTTaps">Enter CCT Taps: </label>
+                    <input type="number" id="CCTTaps"><br>
+                </div>
+
+                <div class="form-row">
+                    <label for="CCTAvgFare">Enter CCT average fare: $ </label>
+                    <input type="number" id="CCTAvgFare" step="0.01"><br>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label for="employees">Enter the number of eligible employees: </label>
+                <input type="number" id="employees"><br>
+            </div>
+
+            <button onclick="calculateRevenueNeutrality()">Calculate</button>
+
+            <h3 id="result"></h3>
+        </div>
+
+        <!-- Profit/Loss Calculator -->
+        <div class="calculator">
+            <h2>Profit/Loss Calculator</h2>
+            
+            <label for="CTPrice">Enter the current price: $ </label>
+            <input type="number" id="CTPrice" step="0.01"><br>
+
+            <label for="RNPrice">Enter the revenue neutral price: $ </label>
+            <input type="number" id="RNPrice" step="0.01"><br>
+
+            <label for="guardrail">Enter the guardrail percentage: %</label>
+            <input type="number" id="guardrail"><span class="percentage"></span><br>
+
+            <div class="form-row">
+                <label for="employeesForProfitLoss">Enter the number of employees: </label>
+                <input type="number" id="employeesForProfitLoss"><br>
+            </div>
+
+            <button onclick="calculateProfitLoss()">Calculate</button>
+
+            <h3 id="profitLossResult"></h3>
+        </div>
+    </div>
+
+    <script>
+        function toggleCCTFields() {
+            var CCTCheckbox = document.getElementById('CCTCheckbox').checked;
+            var CCTFields = document.getElementById('CCTFields');
+            
+            if (CCTCheckbox) {
+                CCTFields.style.display = 'block';
+            } else {
+                CCTFields.style.display = 'none';
+            }
+        }
+
+        function calculateRevenueNeutrality() {
+            const transitTaps = parseFloat(document.getElementById('TransitTaps').value) || 0;
+            const transitAvgFare = parseFloat(document.getElementById('TransitAvgFare').value) || 0;
+            const railTaps = parseFloat(document.getElementById('RailTaps').value) || 0;
+            const railAvgFare = parseFloat(document.getElementById('RailAvgFare').value) || 0;
+            const includeCCT = document.getElementById('CCTCheckbox').checked;
+            const cctTaps = includeCCT ? parseFloat(document.getElementById('CCTTaps').value) || 0 : 0;
+            const cctAvgFare = includeCCT ? parseFloat(document.getElementById('CCTAvgFare').value) || 0 : 0;
+
+            const totalRevenue = 
+                (transitTaps * transitAvgFare) +
+                (railTaps * railAvgFare) +
+                (cctTaps * cctAvgFare);
+
+            const employees = parseFloat(document.getElementById('employees').value) || 1;
+            const RNPrice = (totalRevenue / employees).toFixed(2);
+
+            document.getElementById('result').innerText = 
+                `Revenue Neutral Price: $${RNPrice}`;
+        }
+
+        function calculateProfitLoss() {
+            const ctPrice = parseFloat(document.getElementById('CTPrice').value);
+            const rnPrice = parseFloat(document.getElementById('RNPrice').value);
+            const guardrail = parseFloat(document.getElementById('guardrail').value);
+            const employees = parseFloat(document.getElementById('employeesForProfitLoss').value);
+
+            if (!ctPrice || !rnPrice || !guardrail || !employees) {
+                alert("Please fill in all fields.");
+                return;
+            }
+
+            let currentPrice = ctPrice;
+            let totalLoss = 0;
+            let count = 0;
+            const adjustmentFactor = guardrail / 100;
+
+            while (Math.abs(currentPrice - rnPrice) >= 0.01) {
+                count++;
+                
+                if (currentPrice > rnPrice) {
+                    // Calculate loss for this term
+                    const lossThisTerm = currentPrice - rnPrice;
+                    totalLoss += lossThisTerm;
+                    
+                    // Calculate next price
+                    if (currentPrice * (1 - adjustmentFactor) < rnPrice) {
+                        currentPrice = rnPrice;
+                    } else {
+                        currentPrice *= (1 - adjustmentFactor);
+                    }
+                } else {
+                    // Calculate loss for this term
+                    const lossThisTerm = rnPrice - currentPrice;
+                    totalLoss += lossThisTerm;
+                    
+                    // Calculate next price
+                    if (currentPrice * (1 + adjustmentFactor) > rnPrice) {
+                        currentPrice = rnPrice;
+                    } else {
+                        currentPrice *= (1 + adjustmentFactor);
+                    }
+                }
+
+                // Safety check to prevent infinite loops
+                if (count > 1000) {
+                    alert("Calculation exceeded maximum iterations.");
+                    return;
+                }
+            }
+
+            // Multiply total loss by number of employees
+            totalLoss *= employees;
+
+            const profitLossText = ctPrice > rnPrice 
+                ? `Total Profit: $${totalLoss.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                : `Total Loss: -$${totalLoss.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            document.getElementById('profitLossResult').innerText = 
+                `${profitLossText} over ${count} terms`;
+        }
+    </script>
+</body>
+</html>
